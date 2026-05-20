@@ -69,6 +69,35 @@ Returning `nil` from a dialog handler cancels it. With no handler,
 dialogs are auto-cancelled so the agent never hangs. Handlers run on
 their own thread and never block the event stream.
 
+## Forking
+
+```ruby
+PiAgent.session do |session|
+  session.prompt("Add a feature") { |e| ... }
+
+  # Branch from an earlier message
+  forkable = session.fork_messages           # [{ "entryId" =>, "text" => }]
+  session.fork(forkable.first["entryId"])    # => { "text" =>, "cancelled" => }
+
+  session.clone_session                      # duplicate the active branch
+  session.set_session_name("feature-work")
+end
+```
+
+`fork`/`clone_session` return `cancelled: true` (rather than raising) if
+a pi extension vetoes the operation — that is an expected outcome, not
+an error.
+
+## Errors
+
+- A failed RPC command (`success: false`) raises `PiAgent::CommandError`,
+  which carries the failing `#command` name.
+- Agent-side errors arrive *in* the event stream, not as exceptions —
+  inspect them with `Event#error?`, `#error_message`, and `#error_reason`
+  (`"aborted"` vs `"error"`). This covers `extension_error` events and
+  errored assistant turns. The gem does not abort your iteration on
+  agent errors; you decide how to react.
+
 ## Protocol reference
 
 The wire protocol is documented upstream in

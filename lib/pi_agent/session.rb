@@ -81,11 +81,44 @@ module PiAgent
       @client.request("get_state").value!(timeout: DEFAULT_ACK_TIMEOUT)
     end
 
+    # List user messages available for forking. Returns an array of
+    # { "entryId" => ..., "text" => ... } hashes.
+    def fork_messages
+      request_data("get_fork_messages").fetch("messages", [])
+    end
+
+    # Fork a new branch from a previous user message (an entryId from
+    # `fork_messages`). Returns { "text" => <forked-from text>,
+    # "cancelled" => bool }; `cancelled` is true if an extension vetoed it.
+    def fork(entry_id)
+      request_data("fork", entryId: entry_id)
+    end
+
+    # Duplicate the current active branch into a new session at the
+    # current position. Returns { "cancelled" => bool }. Maps to the
+    # `clone` RPC command (named `clone_session` to avoid shadowing
+    # Object#clone).
+    def clone_session
+      request_data("clone")
+    end
+
+    def set_session_name(name)
+      @client.request("set_session_name", name: name).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      self
+    end
+
     def close
       @client.close
     end
 
     private
+
+    # Send a request and return its `data` payload (the part RPC commands
+    # like fork/clone/get_fork_messages carry their result in).
+    def request_data(type, params = {})
+      response = @client.request(type, params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      response["data"] || {}
+    end
 
     # Subscribe, send the command, then yield Events from the notification
     # stream until a terminal event. The subscription is scoped to one

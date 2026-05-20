@@ -31,10 +31,29 @@ module PiAgent
     # Common shorthand for streaming text deltas.
     # `message_update` with `assistantMessageEvent.type == "text_delta"`.
     def delta
-      ev = @raw["assistantMessageEvent"]
-      return nil unless ev.is_a?(Hash)
+      assistant_event&.[]("delta")
+    end
 
-      ev["delta"]
+    # True for an `extension_error` event, or a `message_update` whose
+    # assistant event is an error (agent turn errored or was aborted).
+    def error?
+      @type == :extension_error || assistant_event_type == :error
+    end
+
+    # Best-effort error text for an error event; nil if not an error.
+    def error_message
+      return @raw["error"] if @type == :extension_error
+      return nil unless assistant_event_type == :error
+
+      assistant_event["error"] || assistant_event["message"]
+    end
+
+    # Reason for an assistant-event error: "aborted" or "error". nil
+    # otherwise. Use this to distinguish a user abort from a real failure.
+    def error_reason
+      return nil unless assistant_event_type == :error
+
+      assistant_event["reason"]
     end
 
     def to_h
@@ -43,6 +62,17 @@ module PiAgent
 
     def inspect
       "#<#{self.class.name} type=#{@type.inspect}>"
+    end
+
+    private
+
+    def assistant_event
+      ev = @raw["assistantMessageEvent"]
+      ev.is_a?(Hash) ? ev : nil
+    end
+
+    def assistant_event_type
+      assistant_event&.[]("type")&.to_sym
     end
   end
 end

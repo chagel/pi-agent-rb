@@ -7,6 +7,7 @@ RSpec.describe PiAgent::Client do
   #   {"id":"<id>","type":"response","command":"<type>","success":true,"echo":<params>}
   # If `type == "notify_only"`, no response is sent.
   # If `type == "broadcast"`, sends two notifications instead.
+  # If `type == "fail"`, responds with success:false and an error.
   CLIENT_STUB_SERVER = <<~RUBY
     require "json"
     $stdout.sync = true
@@ -18,6 +19,10 @@ RSpec.describe PiAgent::Client do
       when "broadcast"
         $stdout.write JSON.generate({ "type" => "agent_start" }) + "\\n"
         $stdout.write JSON.generate({ "type" => "agent_end" }) + "\\n"
+      when "fail"
+        resp = { "id" => msg["id"], "type" => "response", "command" => "fail",
+                 "success" => false, "error" => "boom: bad command" }
+        $stdout.write JSON.generate(resp) + "\\n"
       else
         resp = { "id" => msg["id"], "type" => "response", "command" => msg["type"], "success" => true }
         resp["echo"] = msg.reject { |k, _| %w[id type].include?(k) }
@@ -85,5 +90,22 @@ RSpec.describe PiAgent::Client do
     future = c.request("notify_only") # stub server never replies
     c.close
     expect { future.value!(timeout: 1) }.to raise_error(PiAgent::ProtocolError, /closed/)
+  end
+
+  it "rejects the future with CommandError when a command fails" do
+    c = client
+    expect { c.request("fail").value!(timeout: 2) }
+      .to raise_error(PiAgent::CommandError, /boom: bad command/)
+  ensure
+    c&.close
+  end
+
+  it "exposes the failing command name on CommandError" do
+    c = client
+    c.request("fail").value!(timeout: 2)
+  rescue PiAgent::CommandError => e
+    expect(e.command).to eq("fail")
+  ensure
+    c&.close
   end
 end

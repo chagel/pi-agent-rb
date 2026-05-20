@@ -29,10 +29,19 @@ RSpec.describe PiAgent::Session do
         emit({ "type" => "message_end" })
         emit({ "type" => "turn_end" })
         emit({ "type" => "agent_end", "messages" => [] })
-      when "steer", "set_model", "set_thinking"
+      when "steer", "set_model", "set_thinking", "set_session_name"
         ack(msg)
       when "get_state"
         ack(msg, "state" => { "model" => "stub-model", "thinkingLevel" => "off" })
+      when "get_fork_messages"
+        ack(msg, "data" => { "messages" => [
+                  { "entryId" => "e1", "text" => "first prompt" },
+                  { "entryId" => "e2", "text" => "second prompt" }
+                ] })
+      when "fork"
+        ack(msg, "data" => { "text" => "from:\#{msg["entryId"]}", "cancelled" => false })
+      when "clone"
+        ack(msg, "data" => { "cancelled" => false })
       when "abort"
         # notification, no ack
       else
@@ -129,6 +138,46 @@ RSpec.describe PiAgent::Session do
 
     expect(first).to eq(7)
     expect(second).to eq(7)
+  ensure
+    session&.close
+  end
+
+  it "lists fork messages" do
+    session = build_session
+    messages = session.fork_messages
+
+    expect(messages).to eq(
+      [
+        { "entryId" => "e1", "text" => "first prompt" },
+        { "entryId" => "e2", "text" => "second prompt" }
+      ]
+    )
+  ensure
+    session&.close
+  end
+
+  it "forks from a previous message and returns the forked-from text" do
+    session = build_session
+    result = session.fork("e1")
+
+    expect(result["text"]).to eq("from:e1")
+    expect(result["cancelled"]).to be false
+  ensure
+    session&.close
+  end
+
+  it "clones the current branch" do
+    session = build_session
+    result = session.clone_session
+
+    expect(result["cancelled"]).to be false
+  ensure
+    session&.close
+  end
+
+  it "sets the session name" do
+    session = build_session
+    expect { session.set_session_name("my-feature") }.not_to raise_error
   ensure
     session&.close
   end

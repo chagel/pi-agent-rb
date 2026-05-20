@@ -132,7 +132,7 @@ module PiAgent
       return unless future
 
       if msg["success"] == false
-        future.reject(ProtocolError.new(msg["error"] || "command failed: #{msg.inspect}"))
+        future.reject(CommandError.new(msg["error"] || "command failed: #{msg.inspect}", command: msg["command"]))
       else
         future.resolve(msg)
       end
