@@ -1,12 +1,12 @@
 AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
+  SuggestExtensions: false
   Exclude:
     - 'vendor/**/*'
     - 'tmp/**/*'
     - 'pkg/**/*'
 
-# Project conventions
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
@@ -15,3 +15,25 @@ Style/StringLiteralsInInterpolation:
 
 Style/Documentation:
   Enabled: false
+
+# RSpec describe blocks are inherently long; constants inside describe blocks
+# are a common spec idiom (heredocs for stub scripts, fixture payloads).
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - '*.gemspec'
+
+Metrics/MethodLength:
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ClassLength:
+  Max: 150
+
+Lint/ConstantDefinitionInBlock:
+  Exclude:
+    - 'spec/**/*'
+
+Lint/EmptyBlock:
+  Exclude:
+    - 'spec/**/*'
