@@ -108,4 +108,38 @@ RSpec.describe PiAgent::Client do
   ensure
     c&.close
   end
+
+  describe "transport injection" do
+    it "drives an injected transport instead of spawning pi" do
+      # A custom factory means no local `pi` binary is resolved — the
+      # client never touches PATH. Here the factory builds a subprocess
+      # transport for the stub server, proving the seam works end to end.
+      factory = lambda do |on_message:, on_stderr:|
+        PiAgent::Transport::Subprocess.new(
+          command: ["ruby", "-e", CLIENT_STUB_SERVER],
+          on_message: on_message, on_stderr: on_stderr
+        )
+      end
+
+      c = described_class.new(transport_factory: factory).start
+      response = c.request("ping", foo: "bar").value!(timeout: 2)
+
+      expect(response["command"]).to eq("ping")
+      expect(response["echo"]).to eq({ "foo" => "bar" })
+    ensure
+      c&.close
+    end
+
+    it "does not resolve a pi binary when a transport_factory is given" do
+      factory = lambda do |on_message:, on_stderr:|
+        PiAgent::Transport::Subprocess.new(
+          command: ["ruby", "-e", CLIENT_STUB_SERVER],
+          on_message: on_message, on_stderr: on_stderr
+        )
+      end
+
+      c = described_class.new(bin: "definitely-not-pi-xyz", transport_factory: factory)
+      expect(c.bin).to be_nil
+    end
+  end
 end

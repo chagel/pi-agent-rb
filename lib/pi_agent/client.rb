@@ -10,6 +10,11 @@ module PiAgent
   #   future.value!(timeout: 5)                   # blocks for response
   #   client.notify("set_thinking", level: "off") # fire-and-forget (no id)
   #   client.close
+  #
+  # By default the client spawns `pi --mode rpc` as a local subprocess.
+  # Pass `transport_factory:` — a callable `(on_message:, on_stderr:) ->
+  # transport` — to run pi somewhere else (e.g. inside a remote sandbox).
+  # See Transport for the transport contract.
   class Client
     DEFAULT_BIN = "pi"
     DEFAULT_ARGS = ["--mode", "rpc"].freeze
@@ -40,11 +45,9 @@ module PiAgent
       nil
     end
 
-    def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, extension_ui: nil)
-      @bin = self.class.resolve_bin(bin)
-      @args = Array(args)
-      @env = env
+    def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, cwd: nil, extension_ui: nil, transport_factory: nil)
       @extension_ui_handler = extension_ui
+      @transport_factory = transport_factory || build_subprocess_factory(bin, args, env, cwd)
       @pending = {}
       @pending_mutex = Mutex.new
       @next_id = 0
@@ -55,7 +58,10 @@ module PiAgent
     end
 
     def start
-      @transport = build_transport
+      @transport = @transport_factory.call(
+        on_message: method(:handle_message),
+        on_stderr: method(:handle_stderr)
+      )
       @extension_ui = ExtensionUI.new(writer: @transport, handler: @extension_ui_handler)
       @transport.start
       self
@@ -100,13 +106,18 @@ module PiAgent
 
     private
 
-    def build_transport
-      Transport.new(
-        command: [@bin, *@args],
-        env: @env,
-        on_message: method(:handle_message),
-        on_stderr: method(:handle_stderr)
-      )
+    # Default factory: resolve the pi binary now (so a missing binary
+    # fails fast at construction) and build a subprocess transport on
+    # start, once Client's message handlers are known.
+    def build_subprocess_factory(bin, args, env, cwd)
+      @bin = self.class.resolve_bin(bin)
+      command = [@bin, *Array(args)]
+      lambda do |on_message:, on_stderr:|
+        Transport::Subprocess.new(
+          command: command, env: env, cwd: cwd,
+          on_message: on_message, on_stderr: on_stderr
+        )
+      end
     end
 
     def next_id

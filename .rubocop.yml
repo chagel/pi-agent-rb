@@ -31,6 +31,11 @@ Metrics/MethodLength:
 Metrics/ClassLength:
   Max: 150
 
+# Keyword arguments are self-documenting; they don't carry the
+# positional-argument readability cost this cop guards against.
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+
 # Session methods (set_model, set_thinking, get_state) deliberately mirror
 # the pi RPC command names so the Ruby API maps 1:1 to the wire protocol.
 Naming/AccessorMethodName:

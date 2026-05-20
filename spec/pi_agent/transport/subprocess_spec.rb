@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
-RSpec.describe PiAgent::Transport do
+require "tmpdir"
+require "json"
+
+RSpec.describe PiAgent::Transport::Subprocess do
   # Tiny Ruby subprocess that echoes each stdin line to stdout. Sufficient
   # to exercise the JSONL round trip without requiring pi or any real agent.
   ECHO_SCRIPT = <<~RUBY
@@ -83,5 +86,20 @@ RSpec.describe PiAgent::Transport do
     expect(received_msg.pop(timeout: 2)).to eq({ "ok" => true })
   ensure
     transport&.close
+  end
+
+  it "runs the child process in the given working directory" do
+    Dir.mktmpdir do |dir|
+      received = Queue.new
+      pwd_script = 'require "json"; $stdout.sync = true; $stdout.write(JSON.generate({ "pwd" => Dir.pwd }) + "\\n")'
+      transport = described_class.new(
+        command: ["ruby", "-e", pwd_script], cwd: dir,
+        on_message: ->(msg) { received << msg }
+      ).start
+
+      expect(File.realpath(received.pop(timeout: 2)["pwd"])).to eq(File.realpath(dir))
+    ensure
+      transport&.close
+    end
   end
 end
