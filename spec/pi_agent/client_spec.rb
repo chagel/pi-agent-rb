@@ -7,7 +7,7 @@ RSpec.describe PiAgent::Client do
   #   {"id":"<id>","type":"response","command":"<type>","success":true,"echo":<params>}
   # If `type == "notify_only"`, no response is sent.
   # If `type == "broadcast"`, sends two notifications instead.
-  STUB_SERVER = <<~RUBY
+  CLIENT_STUB_SERVER = <<~RUBY
     require "json"
     $stdout.sync = true
     $stdin.each_line do |line|
@@ -29,7 +29,7 @@ RSpec.describe PiAgent::Client do
   def client
     stub = described_class.allocate
     stub.instance_variable_set(:@bin, "ruby")
-    stub.instance_variable_set(:@args, ["-e", STUB_SERVER])
+    stub.instance_variable_set(:@args, ["-e", CLIENT_STUB_SERVER])
     stub.instance_variable_set(:@env, {})
     stub.instance_variable_set(:@pending, {})
     stub.instance_variable_set(:@pending_mutex, Mutex.new)
