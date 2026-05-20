@@ -40,25 +40,24 @@ module PiAgent
       nil
     end
 
-    def initialize(bin: nil, args: DEFAULT_ARGS, env: {})
+    def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, extension_ui: nil)
       @bin = self.class.resolve_bin(bin)
       @args = Array(args)
       @env = env
+      @extension_ui_handler = extension_ui
       @pending = {}
       @pending_mutex = Mutex.new
       @next_id = 0
       @subscribers = []
       @subscribers_mutex = Mutex.new
       @transport = nil
+      @extension_ui = nil
     end
 
     def start
-      @transport = Transport.new(
-        command: [@bin, *@args],
-        env: @env,
-        on_message: method(:handle_message),
-        on_stderr: method(:handle_stderr)
-      ).start
+      @transport = build_transport
+      @extension_ui = ExtensionUI.new(writer: @transport, handler: @extension_ui_handler)
+      @transport.start
       self
     end
 
@@ -88,6 +87,9 @@ module PiAgent
     end
 
     def close
+      # Drain extension UI handler threads while the transport is still
+      # open so their responses can still be written.
+      @extension_ui&.shutdown
       @transport&.close
       reject_pending(ProtocolError.new("Transport closed before response"))
     end
@@ -98,6 +100,15 @@ module PiAgent
 
     private
 
+    def build_transport
+      Transport.new(
+        command: [@bin, *@args],
+        env: @env,
+        on_message: method(:handle_message),
+        on_stderr: method(:handle_stderr)
+      )
+    end
+
     def next_id
       @pending_mutex.synchronize do
         @next_id += 1
@@ -106,8 +117,11 @@ module PiAgent
     end
 
     def handle_message(msg)
-      if msg["type"] == "response" && msg["id"]
+      type = msg["type"]
+      if type == "response" && msg["id"]
         deliver_response(msg)
+      elsif type == "extension_ui_request"
+        @extension_ui&.dispatch(msg)
       else
         notify_subscribers(msg)
       end

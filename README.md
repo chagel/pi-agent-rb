@@ -44,6 +44,31 @@ Other session methods: `steer`, `follow_up`, `abort`, `set_model`,
 For low-level RPC access (raw `request`/`notify`/`subscribe`), use
 `PiAgent.open`, which yields a `PiAgent::Client`.
 
+## Extension UI
+
+pi extensions can request user interaction (confirm, select, input,
+editor) mid-run. Pass an `extension_ui` handler to answer them:
+
+```ruby
+handler = lambda do |req|
+  case req.method
+  when :confirm then true              # confirmed
+  when :select  then req.options.first # pick an option
+  when :input   then "default"         # entered text
+  when :editor  then req.prefill       # edited text
+  # fire-and-forget (:notify, :set_status, ...) — return value ignored
+  end
+end
+
+PiAgent.session(extension_ui: handler) do |session|
+  session.prompt("Refactor the parser") { |e| ... }
+end
+```
+
+Returning `nil` from a dialog handler cancels it. With no handler,
+dialogs are auto-cancelled so the agent never hangs. Handlers run on
+their own thread and never block the event stream.
+
 ## Protocol reference
 
 The wire protocol is documented upstream in

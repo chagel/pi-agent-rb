@@ -26,17 +26,9 @@ RSpec.describe PiAgent::Client do
     end
   RUBY
 
+  # Run the stub server as the "pi" binary: `ruby -e <stub script>`.
   def client
-    stub = described_class.allocate
-    stub.instance_variable_set(:@bin, "ruby")
-    stub.instance_variable_set(:@args, ["-e", CLIENT_STUB_SERVER])
-    stub.instance_variable_set(:@env, {})
-    stub.instance_variable_set(:@pending, {})
-    stub.instance_variable_set(:@pending_mutex, Mutex.new)
-    stub.instance_variable_set(:@next_id, 0)
-    stub.instance_variable_set(:@subscribers, [])
-    stub.instance_variable_set(:@subscribers_mutex, Mutex.new)
-    stub.start
+    described_class.new(bin: "ruby", args: ["-e", CLIENT_STUB_SERVER]).start
   end
 
   it "completes a request/response round trip" do

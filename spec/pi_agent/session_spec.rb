@@ -41,16 +41,9 @@ RSpec.describe PiAgent::Session do
     end
   RUBY
 
-  def build_session
-    client = PiAgent::Client.allocate
-    client.instance_variable_set(:@bin, "ruby")
-    client.instance_variable_set(:@args, ["-e", SESSION_STUB_SERVER])
-    client.instance_variable_set(:@env, {})
-    client.instance_variable_set(:@pending, {})
-    client.instance_variable_set(:@pending_mutex, Mutex.new)
-    client.instance_variable_set(:@next_id, 0)
-    client.instance_variable_set(:@subscribers, [])
-    client.instance_variable_set(:@subscribers_mutex, Mutex.new)
+  # Run the stub server as the "pi" binary: `ruby -e <stub script>`.
+  def build_session(**client_opts)
+    client = PiAgent::Client.new(bin: "ruby", args: ["-e", SESSION_STUB_SERVER], **client_opts)
     described_class.new(client.start)
   end
 
