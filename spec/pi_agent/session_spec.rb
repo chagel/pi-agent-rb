@@ -35,6 +35,8 @@ RSpec.describe PiAgent::Session do
         ack(msg)
       when "get_state"
         ack(msg, "state" => { "model" => "stub-model", "thinkingLevel" => "off" })
+      when "get_session_stats"
+        ack(msg, "data" => { "sessionId" => "sess-123", "sessionFile" => "/tmp/sess-123.jsonl" })
       when "get_fork_messages"
         ack(msg, "data" => { "messages" => [
                   { "entryId" => "e1", "text" => "first prompt" },
@@ -180,6 +182,16 @@ RSpec.describe PiAgent::Session do
   it "sets the session name" do
     session = build_session
     expect { session.set_session_name("my-feature") }.not_to raise_error
+  ensure
+    session&.close
+  end
+
+  it "fetches session stats" do
+    session = build_session
+    stats = session.session_stats
+
+    expect(stats["sessionId"]).to eq("sess-123")
+    expect(stats["sessionFile"]).to eq("/tmp/sess-123.jsonl")
   ensure
     session&.close
   end

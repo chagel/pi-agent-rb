@@ -78,6 +78,12 @@ module PiAgent
       @client.request("get_state").value!(timeout: DEFAULT_ACK_TIMEOUT)
     end
 
+    # Token usage, cost, and context-window stats for the current session.
+    # Returns the data hash, including "sessionId" and "sessionFile".
+    def session_stats
+      request_data("get_session_stats")
+    end
+
     # List user messages available for forking. Returns an array of
     # { "entryId" => ..., "text" => ... } hashes.
     def fork_messages
