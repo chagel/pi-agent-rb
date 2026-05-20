@@ -29,4 +29,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "async", "~> 2.0"
+  # base64 left the default gem set in Ruby 3.4.
+  spec.add_dependency "base64", "~> 0.2"
 end

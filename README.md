@@ -41,6 +41,24 @@ end
 Other session methods: `steer`, `follow_up`, `abort`, `set_model`,
 `set_thinking`, `get_state`.
 
+### Images
+
+`prompt`, `steer`, and `follow_up` accept an `images:` array. Entries
+may be `PiAgent::Image` objects, file path strings, or raw
+`ImageContent` hashes, mixed freely:
+
+```ruby
+PiAgent.session do |session|
+  session.prompt("What's in these?", images: [
+    "screenshot.png",                                  # path
+    PiAgent::Image.from_file("diagram.jpg"),           # Image object
+    PiAgent::Image.from_bytes(blob, mime_type: "image/webp")
+  ]) { |e| ... }
+end
+```
+
+Supported formats: png, jpeg, gif, webp.
+
 For low-level RPC access (raw `request`/`notify`/`subscribe`), use
 `PiAgent.open`, which yields a `PiAgent::Client`.
 

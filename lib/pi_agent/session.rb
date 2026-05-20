@@ -32,10 +32,11 @@ module PiAgent
     # Submit a user prompt. With a block, yields each Event until the
     # agent finishes (agent_end), then returns self. Without a block,
     # returns an Enumerator of Events.
+    #
+    # `images` accepts PiAgent::Image objects, file path strings, or
+    # raw ImageContent hashes — in any mix.
     def prompt(message, images: nil, event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
-      params = { message: message }
-      params[:images] = images if images
-      stream = event_stream("prompt", params, event_timeout: event_timeout)
+      stream = event_stream("prompt", message_params(message, images), event_timeout: event_timeout)
 
       return stream unless block
 
@@ -47,17 +48,13 @@ module PiAgent
     # the current assistant turn finishes its tool calls, before the next
     # LLM call. Fire-and-forget; raises on rejection.
     def steer(message, images: nil)
-      params = { message: message }
-      params[:images] = images if images
-      @client.request("steer", params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      @client.request("steer", message_params(message, images)).value!(timeout: DEFAULT_ACK_TIMEOUT)
       self
     end
 
     # Queue a follow-up message, delivered only after the agent stops.
     def follow_up(message, images: nil)
-      params = { message: message, streamingBehavior: "followUp" }
-      params[:images] = images if images
-      @client.request("prompt", params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      @client.request("follow_up", message_params(message, images)).value!(timeout: DEFAULT_ACK_TIMEOUT)
       self
     end
 
@@ -112,6 +109,26 @@ module PiAgent
     end
 
     private
+
+    # Build the { message:, images? } params for a prompt-style command.
+    def message_params(message, images)
+      params = { message: message }
+      normalized = normalize_images(images)
+      params[:images] = normalized unless normalized.empty?
+      params
+    end
+
+    # Coerce mixed image inputs into ImageContent hashes.
+    def normalize_images(images)
+      Array(images).map do |image|
+        case image
+        when Image  then image.to_h
+        when String then Image.from_file(image).to_h
+        when Hash   then image
+        else raise ArgumentError, "Unsupported image: #{image.inspect}"
+        end
+      end
+    end
 
     # Send a request and return its `data` payload (the part RPC commands
     # like fork/clone/get_fork_messages carry their result in).

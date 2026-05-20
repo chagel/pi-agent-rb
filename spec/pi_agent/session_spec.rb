@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tempfile"
+
 RSpec.describe PiAgent::Session do
   # Stub pi RPC server. Recognises the subset of commands the Session uses:
   #
@@ -22,14 +24,14 @@ RSpec.describe PiAgent::Session do
       case msg["type"]
       when "prompt"
         ack(msg)
-        emit({ "type" => "agent_start" })
+        emit({ "type" => "agent_start", "imagesReceived" => (msg["images"] || []).size })
         emit({ "type" => "message_start" })
         emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "Hello" } })
         emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => " world" } })
         emit({ "type" => "message_end" })
         emit({ "type" => "turn_end" })
         emit({ "type" => "agent_end", "messages" => [] })
-      when "steer", "set_model", "set_thinking", "set_session_name"
+      when "steer", "follow_up", "set_model", "set_thinking", "set_session_name"
         ack(msg)
       when "get_state"
         ack(msg, "state" => { "model" => "stub-model", "thinkingLevel" => "off" })
@@ -180,5 +182,64 @@ RSpec.describe PiAgent::Session do
     expect { session.set_session_name("my-feature") }.not_to raise_error
   ensure
     session&.close
+  end
+
+  describe "images" do
+    def images_received(session, images)
+      start = session.prompt("look", images: images).find { |e| e.type == :agent_start }
+      start["imagesReceived"]
+    end
+
+    it "sends an Image object as an ImageContent attachment" do
+      session = build_session
+      image = PiAgent::Image.from_bytes("fakebytes", mime_type: "image/png")
+      expect(images_received(session, [image])).to eq(1)
+    ensure
+      session&.close
+    end
+
+    it "accepts a raw ImageContent hash" do
+      session = build_session
+      hash = { "type" => "image", "data" => "abc", "mimeType" => "image/png" }
+      expect(images_received(session, [hash])).to eq(1)
+    ensure
+      session&.close
+    end
+
+    it "accepts a file path string" do
+      session = build_session
+      file = Tempfile.new(["pic", ".png"])
+      file.binmode
+      file.write("fakebytes")
+      file.flush
+      expect(images_received(session, [file.path])).to eq(1)
+    ensure
+      session&.close
+      file&.close!
+    end
+
+    it "sends multiple images" do
+      session = build_session
+      a = PiAgent::Image.from_bytes("a", mime_type: "image/png")
+      b = PiAgent::Image.from_bytes("b", mime_type: "image/jpeg")
+      expect(images_received(session, [a, b])).to eq(2)
+    ensure
+      session&.close
+    end
+
+    it "omits the images field when none are given" do
+      session = build_session
+      expect(images_received(session, nil)).to eq(0)
+    ensure
+      session&.close
+    end
+
+    it "raises ArgumentError for an unsupported image input" do
+      session = build_session
+      expect { session.prompt("look", images: [42]).to_a }
+        .to raise_error(ArgumentError, /Unsupported image/)
+    ensure
+      session&.close
+    end
   end
 end

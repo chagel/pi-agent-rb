@@ -8,6 +8,7 @@ require_relative "pi_agent/transport"
 require_relative "pi_agent/extension_ui"
 require_relative "pi_agent/client"
 require_relative "pi_agent/event"
+require_relative "pi_agent/image"
 require_relative "pi_agent/session"
 
 module PiAgent
