@@ -11,3 +11,4 @@ Gemfile.lock
 *.gem
 .rspec_status
 .DS_Store
+.claude/settings.local.json
