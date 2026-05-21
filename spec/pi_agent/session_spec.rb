@@ -5,13 +5,16 @@ require "tempfile"
 RSpec.describe PiAgent::Session do
   # Stub pi RPC server. Recognises the subset of commands the Session uses:
   #
-  #   prompt  -> acks, then streams agent_start, two message_update deltas,
-  #              message_end, turn_end, agent_end.
-  #   steer   -> acks only.
-  #   set_*   -> acks only.
-  #   get_state -> acks with a state payload.
+  #   prompt    -> acks, then streams agent_start, two message_update deltas,
+  #                message_end, turn_end, agent_end.
+  #   set_model -> validated against pi's real contract (provider + modelId);
+  #                rejected if either is missing.
+  #   get_*     -> acks with a data/state payload.
+  #   others    -> ack only.
   #
-  # `abort` is a notification (no id) and is silently accepted.
+  # `abort` is a notification (no id) and is silently accepted. Any
+  # unrecognised command is rejected, so a wrong command name surfaces
+  # as a CommandError rather than silently passing.
   SESSION_STUB_SERVER = <<~RUBY
     require "json"
     $stdout.sync = true
@@ -31,10 +34,33 @@ RSpec.describe PiAgent::Session do
         emit({ "type" => "message_end" })
         emit({ "type" => "turn_end" })
         emit({ "type" => "agent_end", "messages" => [] })
-      when "steer", "follow_up", "set_model", "set_thinking", "set_session_name"
+      when "steer", "follow_up", "set_thinking_level", "set_session_name"
         ack(msg)
+      when "set_model"
+        # Validate the real pi contract: provider + modelId, not a `model` field.
+        if msg["provider"] && msg["modelId"]
+          ack(msg, "data" => { "provider" => msg["provider"], "id" => msg["modelId"] })
+        else
+          emit({ "id" => msg["id"], "type" => "response", "command" => "set_model",
+                 "success" => false, "error" => "set_model requires provider and modelId" })
+        end
+      when "cycle_model"
+        ack(msg, "data" => { "model" => { "id" => "next-model" }, "thinkingLevel" => "high", "isScoped" => false })
+      when "get_available_models"
+        ack(msg, "data" => { "models" => [{ "provider" => "anthropic", "id" => "claude-sonnet-4-5" }] })
       when "get_state"
         ack(msg, "state" => { "model" => "stub-model", "thinkingLevel" => "off" })
+      when "get_messages"
+        ack(msg, "data" => { "messages" => [{ "role" => "user", "content" => "hi" }] })
+      when "get_last_assistant_text"
+        ack(msg, "data" => { "text" => "the final answer" })
+      when "compact"
+        ack(msg, "data" => { "summary" => "compacted", "tokensBefore" => 1000,
+                             "customInstructions" => msg["customInstructions"] })
+      when "new_session"
+        ack(msg, "data" => { "cancelled" => false, "parentSession" => msg["parentSession"] })
+      when "switch_session"
+        ack(msg, "data" => { "cancelled" => false, "sessionPath" => msg["sessionPath"] })
       when "get_session_stats"
         ack(msg, "data" => { "sessionId" => "sess-123", "sessionFile" => "/tmp/sess-123.jsonl" })
       when "get_fork_messages"
@@ -49,7 +75,9 @@ RSpec.describe PiAgent::Session do
       when "abort"
         # notification, no ack
       else
-        ack(msg)
+        # Unknown command: reject so a wrong command name surfaces as an error.
+        emit({ "id" => msg["id"], "type" => "response", "command" => msg["type"],
+               "success" => false, "error" => "unknown command: \#{msg["type"]}" }) if msg["id"]
       end
     end
   RUBY
@@ -112,9 +140,33 @@ RSpec.describe PiAgent::Session do
     session&.close
   end
 
-  it "sets the model" do
+  it "sets the model from a provider/modelId string" do
     session = build_session
     expect { session.set_model("anthropic/claude-sonnet-4-5") }.not_to raise_error
+  ensure
+    session&.close
+  end
+
+  it "sets the model from separate provider and modelId arguments" do
+    session = build_session
+    expect { session.set_model("anthropic", "claude-sonnet-4-5") }.not_to raise_error
+  ensure
+    session&.close
+  end
+
+  it "cycles to the next model" do
+    session = build_session
+    result = session.cycle_model
+
+    expect(result["model"]).to eq({ "id" => "next-model" })
+    expect(result["thinkingLevel"]).to eq("high")
+  ensure
+    session&.close
+  end
+
+  it "lists available models" do
+    session = build_session
+    expect(session.available_models).to eq([{ "provider" => "anthropic", "id" => "claude-sonnet-4-5" }])
   ensure
     session&.close
   end
@@ -131,6 +183,67 @@ RSpec.describe PiAgent::Session do
     state = session.get_state
 
     expect(state["state"]).to eq({ "model" => "stub-model", "thinkingLevel" => "off" })
+  ensure
+    session&.close
+  end
+
+  it "fetches the conversation messages" do
+    session = build_session
+    expect(session.messages).to eq([{ "role" => "user", "content" => "hi" }])
+  ensure
+    session&.close
+  end
+
+  it "fetches the last assistant text" do
+    session = build_session
+    expect(session.last_assistant_text).to eq("the final answer")
+  ensure
+    session&.close
+  end
+
+  it "runs a prompt and returns the final assistant text" do
+    session = build_session
+    expect(session.run("hi")).to eq("the final answer")
+  ensure
+    session&.close
+  end
+
+  it "yields events to a block while running" do
+    session = build_session
+    types = []
+    session.run("hi") { |event| types << event.type }
+
+    expect(types.last).to eq(:agent_end)
+  ensure
+    session&.close
+  end
+
+  it "compacts the conversation context" do
+    session = build_session
+    result = session.compact(custom_instructions: "keep code")
+
+    expect(result["summary"]).to eq("compacted")
+    expect(result["customInstructions"]).to eq("keep code")
+  ensure
+    session&.close
+  end
+
+  it "starts a new session" do
+    session = build_session
+    result = session.new_session(parent_session: "/tmp/parent.jsonl")
+
+    expect(result["cancelled"]).to be false
+    expect(result["parentSession"]).to eq("/tmp/parent.jsonl")
+  ensure
+    session&.close
+  end
+
+  it "switches to a different session file" do
+    session = build_session
+    result = session.switch_session("/tmp/other.jsonl")
+
+    expect(result["cancelled"]).to be false
+    expect(result["sessionPath"]).to eq("/tmp/other.jsonl")
   ensure
     session&.close
   end

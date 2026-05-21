@@ -58,24 +58,87 @@ module PiAgent
       self
     end
 
+    # Single-shot helper mirroring pi's print mode: submit `message`,
+    # drain the whole event stream, and return the final assistant text
+    # (nil if the agent produced none). Yields each Event to an optional
+    # block while the stream drains.
+    def run(message, images: nil, event_timeout: DEFAULT_EVENT_TIMEOUT)
+      prompt(message, images: images, event_timeout: event_timeout) do |event|
+        yield event if block_given?
+      end
+      last_assistant_text
+    end
+
     # Abort the current agent run. Fire-and-forget.
     def abort
       @client.notify("abort")
       self
     end
 
-    def set_model(model)
-      @client.request("set_model", model: model).value!(timeout: DEFAULT_ACK_TIMEOUT)
+    # Switch to a specific model. Accepts either a single "provider/modelId"
+    # string or the two parts as separate arguments.
+    def set_model(provider, model_id = nil)
+      provider, model_id = provider.split("/", 2) if model_id.nil?
+      @client.request("set_model", provider: provider, modelId: model_id)
+             .value!(timeout: DEFAULT_ACK_TIMEOUT)
       self
     end
 
+    # Switch to the next configured model. Returns the new
+    # { "model" =>, "thinkingLevel" =>, "isScoped" => } hash, or {} when
+    # only one model is available.
+    def cycle_model
+      request_data("cycle_model")
+    end
+
+    # All configured models, as an array of Model hashes.
+    def available_models
+      request_data("get_available_models").fetch("models", [])
+    end
+
+    # Set the reasoning level: "off", "minimal", "low", "medium", "high",
+    # or "xhigh" (xhigh is OpenAI codex-max only).
     def set_thinking(level)
-      @client.request("set_thinking", level: level).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      @client.request("set_thinking_level", level: level).value!(timeout: DEFAULT_ACK_TIMEOUT)
       self
     end
 
     def get_state
       @client.request("get_state").value!(timeout: DEFAULT_ACK_TIMEOUT)
+    end
+
+    # Full conversation history, as an array of AgentMessage hashes.
+    def messages
+      request_data("get_messages").fetch("messages", [])
+    end
+
+    # Text of the last assistant message, or nil if there is none.
+    def last_assistant_text
+      request_data("get_last_assistant_text")["text"]
+    end
+
+    # Manually compact the conversation context to reduce token usage.
+    # Returns the result hash ({ "summary" =>, "firstKeptEntryId" =>,
+    # "tokensBefore" => }).
+    def compact(custom_instructions: nil)
+      params = {}
+      params[:customInstructions] = custom_instructions if custom_instructions
+      request_data("compact", params)
+    end
+
+    # Start a fresh session in the same pi process. Pass `parent_session:`
+    # (a session file path) to record provenance. Returns
+    # { "cancelled" => bool }; cancelled is true if an extension vetoed it.
+    def new_session(parent_session: nil)
+      params = {}
+      params[:parentSession] = parent_session if parent_session
+      request_data("new_session", params)
+    end
+
+    # Load a different session file into this process. Returns
+    # { "cancelled" => bool }; cancelled is true if an extension vetoed it.
+    def switch_session(path)
+      request_data("switch_session", sessionPath: path)
     end
 
     # Token usage, cost, and context-window stats for the current session.

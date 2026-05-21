@@ -38,8 +38,26 @@ PiAgent.session do |session|
 end
 ```
 
-Other session methods: `steer`, `follow_up`, `abort`, `set_model`,
-`set_thinking`, `get_state`.
+For a single-shot call, `run` submits a prompt, drains the stream, and
+returns the final assistant text — pi's print mode:
+
+```ruby
+PiAgent.session do |session|
+  puts session.run("What's 2 + 2?")   # => "4"
+end
+```
+
+Other session methods:
+
+- Prompting: `steer`, `follow_up`, `abort`
+- Model: `set_model`, `cycle_model`, `available_models`, `set_thinking`
+- State: `get_state`, `messages`, `last_assistant_text`, `session_stats`
+- Context: `compact`
+- Sessions: `new_session`, `switch_session`, `fork`, `clone_session`,
+  `set_session_name`
+
+`set_model` accepts either `set_model("anthropic/claude-sonnet-4-5")` or
+`set_model("anthropic", "claude-sonnet-4-5")`.
 
 ### Images
 
