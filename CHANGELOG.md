@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-05-27
+
+### Changed
+- Minimum Ruby raised to `3.3.0` (Ruby 3.2 reached EOL 2026-04-01).
+
+### Added
+- GitHub Actions CI: rspec across Ruby 3.3, 3.4, 4.0, head; rubocop on 4.0.
+- README badges (CI status, Gem version, License) and installation section.
+
 ## [0.1.1] - 2026-05-27
 
 ### Changed

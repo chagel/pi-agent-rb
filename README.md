@@ -1,5 +1,9 @@
 # pi-agent-rb
 
+[![CI](https://github.com/chagel/pi-agent-rb/actions/workflows/ci.yml/badge.svg)](https://github.com/chagel/pi-agent-rb/actions/workflows/ci.yml)
+[![Gem Version](https://img.shields.io/gem/v/pi-agent-rb.svg)](https://rubygems.org/gems/pi-agent-rb)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Ruby client for the [pi coding agent](https://github.com/earendil-works/pi).
 Spawns `pi --mode rpc` and speaks its JSONL protocol from Ruby. Designed for
 building interactive agent UIs (web, TUI) on top of pi.
@@ -8,9 +12,25 @@ building interactive agent UIs (web, TUI) on top of pi.
 
 ## Requirements
 
-- Ruby 3.2+
+- Ruby 3.3+
 - `pi` on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
 - This gem is pinned against pi `0.76.0`; other versions may work but are not verified.
+
+## Installation
+
+Install the gem:
+
+```bash
+gem install pi-agent-rb
+```
+
+Or add it to your `Gemfile`:
+
+```ruby
+gem "pi-agent-rb"
+```
+
+then run `bundle install`.
 
 ## Quick start
 
