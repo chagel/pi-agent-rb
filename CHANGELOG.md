@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-05-29
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.77.0` (adds Claude
+  Opus 4.8 metadata, `--exclude-tools`, and Codex subscription device login;
+  no changes to the RPC protocol surface this gem drives).
+
 ## [0.1.2] - 2026-05-27
 
 ### Changed
