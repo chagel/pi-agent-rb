@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-09
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.0` (adds project
+  trust gating for project-local inputs with `--approve`/`--no-approve` flags,
+  cache-hit visibility in footer, richer SDK exports, and assorted fixes;
+  no breaking changes to the RPC protocol surface this gem drives).
+
 ## [0.1.3] - 2026-05-29
 
 ### Changed
