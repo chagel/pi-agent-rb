@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-09
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.0` (cache-hit
+  visibility in footer, richer SDK exports, and assorted fixes; the RPC wire
+  protocol this gem drives is unchanged).
+- **Behavior change in pi 0.79.0:** project-local inputs (`.pi/settings.json`,
+  project extensions, resources, packages) are now trust-gated. In RPC mode pi
+  does not prompt — without a saved trust decision it silently ignores them.
+  Pass the new `approve: true` option to keep loading them (see Added).
+
+### Added
+- `approve:` option on `Client.new` / `PiAgent.session` / `PiAgent.open`:
+  `true` appends `--approve` to the pi spawn args (trust the project),
+  `false` appends `--no-approve` (explicitly ignore project inputs); the
+  default `nil` leaves pi's own behavior untouched.
+
 ## [0.1.3] - 2026-05-29
 
 ### Changed
