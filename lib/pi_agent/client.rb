@@ -15,6 +15,12 @@ module PiAgent
   # Pass `transport_factory:` — a callable `(on_message:, on_stderr:) ->
   # transport` — to run pi somewhere else (e.g. inside a remote sandbox).
   # See Transport for the transport contract.
+  #
+  # Since pi 0.79.0 project-local inputs (.pi/settings.json, project
+  # extensions, resources, packages) are trust-gated, and in RPC mode pi
+  # silently ignores them unless the project was already trusted. Pass
+  # `approve: true` to trust the project (`--approve`), or `approve: false`
+  # to explicitly ignore project inputs (`--no-approve`).
   class Client
     DEFAULT_BIN = "pi"
     DEFAULT_ARGS = ["--mode", "rpc"].freeze
@@ -45,8 +51,10 @@ module PiAgent
       nil
     end
 
-    def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, cwd: nil, extension_ui: nil, transport_factory: nil)
+    def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, cwd: nil, approve: nil,
+                   extension_ui: nil, transport_factory: nil)
       @extension_ui_handler = extension_ui
+      args = [*args, approve ? "--approve" : "--no-approve"] unless approve.nil?
       @transport_factory = transport_factory || build_subprocess_factory(bin, args, env, cwd)
       @pending = {}
       @pending_mutex = Mutex.new

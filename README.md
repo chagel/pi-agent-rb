@@ -14,7 +14,7 @@ building interactive agent UIs (web, TUI) on top of pi.
 
 - Ruby 3.3+
 - `pi` on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
-- This gem is pinned against pi `0.77.0`; other versions may work but are not verified.
+- This gem is pinned against pi `0.79.0`; other versions may work but are not verified.
 
 ## Installation
 
@@ -99,6 +99,20 @@ Supported formats: png, jpeg, gif, webp.
 
 For low-level RPC access (raw `request`/`notify`/`subscribe`), use
 `PiAgent.open`, which yields a `PiAgent::Client`.
+
+## Project trust
+
+Since pi `0.79.0`, project-local inputs (`.pi/settings.json`, project
+extensions, resources, and packages) are trust-gated. In RPC mode pi never
+prompts: unless the project was already trusted (e.g. interactively on the
+same machine), it **silently ignores them**. Pass `approve: true` to trust
+the project, or `approve: false` to explicitly ignore project inputs:
+
+```ruby
+PiAgent.session(cwd: "/path/to/project", approve: true) do |session|
+  # project .pi extensions and settings are loaded
+end
+```
 
 ## Extension UI
 

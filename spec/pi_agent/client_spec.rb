@@ -23,6 +23,10 @@ RSpec.describe PiAgent::Client do
         resp = { "id" => msg["id"], "type" => "response", "command" => "fail",
                  "success" => false, "error" => "boom: bad command" }
         $stdout.write JSON.generate(resp) + "\\n"
+      when "argv"
+        resp = { "id" => msg["id"], "type" => "response", "command" => "argv",
+                 "success" => true, "argv" => ARGV }
+        $stdout.write JSON.generate(resp) + "\\n"
       else
         resp = { "id" => msg["id"], "type" => "response", "command" => msg["type"], "success" => true }
         resp["echo"] = msg.reject { |k, _| %w[id type].include?(k) }
@@ -107,6 +111,29 @@ RSpec.describe PiAgent::Client do
     expect(e.command).to eq("fail")
   ensure
     c&.close
+  end
+
+  describe "approve:" do
+    # The stub server echoes ARGV — exactly the extra flags pi would
+    # receive. The `--` keeps ruby from parsing them as interpreter options.
+    def argv_for(**opts)
+      c = described_class.new(bin: "ruby", args: ["-e", CLIENT_STUB_SERVER, "--"], **opts).start
+      c.request("argv").value!(timeout: 2)["argv"]
+    ensure
+      c&.close
+    end
+
+    it "appends --approve when approve: true" do
+      expect(argv_for(approve: true)).to eq(["--approve"])
+    end
+
+    it "appends --no-approve when approve: false" do
+      expect(argv_for(approve: false)).to eq(["--no-approve"])
+    end
+
+    it "appends nothing by default" do
+      expect(argv_for).to eq([])
+    end
   end
 
   describe "transport injection" do
