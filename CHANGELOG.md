@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-06-09
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.1` (adds Claude
+  Fable 5 model support, a global `defaultProjectTrust` setting to configure
+  unresolved-trust behavior, prompt template argument defaults, extension
+  autocomplete trigger characters, and assorted fixes; no changes to the RPC
+  protocol surface or the `--approve`/`--no-approve` flags this gem drives).
+
 ## [0.1.4] - 2026-06-09
 
 ### Changed
