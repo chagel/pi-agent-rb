@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-06-15
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.4` (rolls up
+  0.79.2–0.79.4: automatic light/dark theme detection, Bash tool output
+  truncation fixes, corrected OpenAI/Codex context-window metadata, project
+  trust detection no longer reading global state from `$HOME`, and assorted
+  fixes; no changes to the RPC protocol surface or the `--approve`/`--no-approve`
+  flags this gem drives).
+
 ## [0.1.5] - 2026-06-09
 
 ### Changed
