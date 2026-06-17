@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-06-16
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.6` (rolls up
+  0.79.5–0.79.6: provider-scoped API key `env` overrides in `auth.json`, a
+  global `httpProxy` setting, HTTP dispatcher respecting caller-provided
+  `fetch` overrides, and assorted provider/streaming fixes; no changes to the
+  RPC protocol surface or the `--approve`/`--no-approve` flags this gem
+  drives).
+
 ## [0.1.6] - 2026-06-15
 
 ### Changed
