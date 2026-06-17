@@ -69,7 +69,7 @@ end
 
 Other session methods:
 
-- Prompting: `steer`, `follow_up`, `abort`
+- Prompting: `steer`, `follow_up`, `events`, `abort`
 - Model: `set_model`, `cycle_model`, `available_models`, `set_thinking`
 - State: `get_state`, `messages`, `last_assistant_text`, `session_stats`
 - Context: `compact`
@@ -78,6 +78,21 @@ Other session methods:
 
 `set_model` accepts either `set_model("anthropic/claude-sonnet-4-5")` or
 `set_model("anthropic", "claude-sonnet-4-5")`.
+
+A `prompt` streams one agent cycle (`agent_start`..`agent_end`). A message
+queued with `follow_up` (or `steer`) runs in a *later* cycle; drain it with
+`events`, a prompt-less iteration of the same stream:
+
+```ruby
+PiAgent.session do |session|
+  session.prompt("Draft a haiku") { |e| print e.delta if e.type == :message_update }
+  session.follow_up("Now translate it to French")
+  session.events { |e| print e.delta if e.type == :message_update }
+end
+```
+
+Like `prompt`, `events` yields each `Event` until `agent_end` with a block,
+or returns an `Enumerator` without one.
 
 ### Images
 

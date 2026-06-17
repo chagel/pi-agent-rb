@@ -15,8 +15,9 @@ module PiAgent
   #
   # v1 limitation: `prompt` streams one agent cycle (agent_start..agent_end).
   # Messages queued mid-flight via `follow_up`/`steer` run in subsequent
-  # cycles; consume those by calling `prompt`-less `events` or another
-  # `prompt`. Bidirectional extension UI is not yet surfaced here.
+  # cycles; consume those by calling `events` (a prompt-less drain of the
+  # same event stream) or another `prompt`. Bidirectional extension UI is
+  # not yet surfaced here.
   class Session
     # Max time to wait for the next event before assuming the agent stalled.
     DEFAULT_EVENT_TIMEOUT = 300
@@ -37,6 +38,21 @@ module PiAgent
     # raw ImageContent hashes — in any mix.
     def prompt(message, images: nil, event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
       stream = event_stream("prompt", message_params(message, images), event_timeout: event_timeout)
+
+      return stream unless block
+
+      stream.each(&block)
+      self
+    end
+
+    # Iterate the event stream without submitting a new prompt. Use this to
+    # drain the events produced by messages queued via `steer`/`follow_up`,
+    # which run in agent cycles that begin after the current `prompt`
+    # returns. With a block, yields each Event until the cycle finishes
+    # (agent_end) and returns self; without a block, returns an Enumerator
+    # of Events.
+    def events(event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
+      stream = subscribed_stream(event_timeout: event_timeout)
 
       return stream unless block
 
@@ -207,14 +223,23 @@ module PiAgent
     end
 
     # Subscribe, send the command, then yield Events from the notification
-    # stream until a terminal event. The subscription is scoped to one
-    # iteration of the returned Enumerator so cleanup is deterministic.
+    # stream until a terminal event.
     def event_stream(type, params, event_timeout:)
+      subscribed_stream(event_timeout: event_timeout) do
+        @client.request(type, params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+      end
+    end
+
+    # Subscribe, run `before_pump` (e.g. send a command) once the
+    # subscription is live so no events are missed in the gap, then yield
+    # Events until a terminal event. The subscription is scoped to one
+    # iteration of the returned Enumerator so cleanup is deterministic.
+    def subscribed_stream(event_timeout:, &before_pump)
       Enumerator.new do |yielder|
         queue = Queue.new
         handle = @client.subscribe { |msg| queue << msg }
         begin
-          @client.request(type, params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+          before_pump&.call
           pump_events(queue, yielder, event_timeout)
         ensure
           @client.unsubscribe(handle)

@@ -34,7 +34,15 @@ RSpec.describe PiAgent::Session do
         emit({ "type" => "message_end" })
         emit({ "type" => "turn_end" })
         emit({ "type" => "agent_end", "messages" => [] })
-      when "steer", "follow_up", "set_thinking_level", "set_session_name"
+      when "follow_up"
+        # Ack, then run the queued message in its own agent cycle (as pi
+        # does once the agent stops) so a prompt-less `events` drain has
+        # something to consume.
+        ack(msg)
+        emit({ "type" => "agent_start", "imagesReceived" => 0 })
+        emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "queued" } })
+        emit({ "type" => "agent_end", "messages" => [] })
+      when "steer", "set_thinking_level", "set_session_name"
         ack(msg)
       when "set_model"
         # Validate the real pi contract: provider + modelId, not a `model` field.
@@ -131,6 +139,30 @@ RSpec.describe PiAgent::Session do
     expect { session.follow_up("and then test it") }.not_to raise_error
   ensure
     session&.close
+  end
+
+  describe "#events (prompt-less drain)" do
+    it "returns an Enumerator when called without a block" do
+      session = build_session
+      expect(session.events).to be_a(Enumerator)
+    ensure
+      session&.close
+    end
+
+    it "drains the agent cycle triggered by a queued follow_up message" do
+      session = build_session
+      # The subscription must be live before the follow_up cycle is emitted,
+      # so consume `events` from a background thread, then trigger the cycle.
+      types = []
+      consumer = Thread.new { session.events { |event| types << event.type } }
+      Thread.pass until consumer.status == "sleep" || !consumer.status # subscribed, blocked on the queue
+      session.follow_up("now run it")
+      consumer.join(5)
+
+      expect(types).to eq(%i[agent_start message_update agent_end])
+    ensure
+      session&.close
+    end
   end
 
   it "sends abort as a fire-and-forget notification" do

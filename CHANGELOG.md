@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Session#events`: a prompt-less drain of the agent event stream. Use it to
+  consume the agent cycle that runs after a queued `follow_up`/`steer` message,
+  without submitting a new prompt. Mirrors `prompt`'s block/Enumerator
+  contract. (The class docstring already referenced this method; it now
+  exists.)
+
 ## [0.1.9] - 2026-06-22
 
 ### Changed
