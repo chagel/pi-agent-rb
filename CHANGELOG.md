@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-06-20
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.79.9` (rolls up
+  0.79.7–0.79.9: automatic light/dark theme mode, selective provider base
+  entry points, Mistral prompt caching, chat-template thinking for
+  OpenAI-compatible providers, and assorted provider/streaming/edit fixes).
+  RPC-adjacent changes are additive only: compact results and compaction
+  events now carry estimated post-compaction token counts, and RPC
+  unknown-command errors now include the request id. No changes to the RPC
+  protocol surface or the `--approve`/`--no-approve` flags this gem drives.
+
 ## [0.1.7] - 2026-06-16
 
 ### Changed
