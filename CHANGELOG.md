@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-06-25
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.2` (rolls up
+  0.80.0–0.80.2: the old global `@earendil-works/pi-ai` API moved to the
+  `@earendil-works/pi-ai/compat` entrypoint and the selective `/base`
+  provider entrypoints were removed; plus provider/auth resolution fixes
+  (Bedrock, Cloudflare, Fireworks, OpenAI Responses/Codex), session-name
+  newline normalization, and a `Ctrl+J` newline keybinding). These are
+  SDK/library-level changes; no changes to the RPC protocol surface or the
+  `--approve`/`--no-approve` flags this gem drives.
+
 ### Added
 - `Session#follow_up` now accepts a block to drain the agent cycle the queued
   message triggers, mirroring `prompt`'s block contract. It is race-free —
