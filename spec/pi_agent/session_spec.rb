@@ -141,6 +141,18 @@ RSpec.describe PiAgent::Session do
     session&.close
   end
 
+  it "drains the follow_up cycle race-free when given a block" do
+    session = build_session
+    # Single-threaded, documented order: follow_up subscribes before sending,
+    # so the cycle it triggers is fully captured — no missed events, no hang.
+    types = []
+    session.follow_up("now run it") { |event| types << event.type }
+
+    expect(types).to eq(%i[agent_start message_update agent_end])
+  ensure
+    session&.close
+  end
+
   describe "#events (prompt-less drain)" do
     it "returns an Enumerator when called without a block" do
       session = build_session

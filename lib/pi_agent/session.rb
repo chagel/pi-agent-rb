@@ -14,10 +14,11 @@ module PiAgent
   # create/select step — the Session *is* the running pi process.
   #
   # v1 limitation: `prompt` streams one agent cycle (agent_start..agent_end).
-  # Messages queued mid-flight via `follow_up`/`steer` run in subsequent
-  # cycles; consume those by calling `events` (a prompt-less drain of the
-  # same event stream) or another `prompt`. Bidirectional extension UI is
-  # not yet surfaced here.
+  # A message queued with `follow_up` runs in a later cycle; pass a block to
+  # `follow_up` to drain that cycle race-free (it subscribes before sending).
+  # `events` is a prompt-less drain of the same stream for when you have
+  # already subscribed before the cycle starts. Bidirectional extension UI
+  # is not yet surfaced here.
   class Session
     # Max time to wait for the next event before assuming the agent stalled.
     DEFAULT_EVENT_TIMEOUT = 300
@@ -45,12 +46,17 @@ module PiAgent
       self
     end
 
-    # Iterate the event stream without submitting a new prompt. Use this to
-    # drain the events produced by messages queued via `steer`/`follow_up`,
-    # which run in agent cycles that begin after the current `prompt`
-    # returns. With a block, yields each Event until the cycle finishes
-    # (agent_end) and returns self; without a block, returns an Enumerator
-    # of Events.
+    # Drain the event stream without submitting a new prompt. With a block,
+    # yields each Event until the cycle finishes (agent_end) and returns
+    # self; without a block, returns an Enumerator of Events.
+    #
+    # The subscription is established lazily, when iteration begins — so any
+    # cycle triggered *before* you call `events` may have already emitted
+    # events that are then missed. To drain a `follow_up` cycle race-free,
+    # pass a block to `follow_up` instead. Use `events` only when you
+    # subscribe before the cycle starts (e.g. from a thread that begins
+    # iterating, then trigger the cycle). With nothing queued, it blocks
+    # for `event_timeout` (300s default).
     def events(event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
       stream = subscribed_stream(event_timeout: event_timeout)
 
@@ -69,8 +75,21 @@ module PiAgent
     end
 
     # Queue a follow-up message, delivered only after the agent stops.
-    def follow_up(message, images: nil)
-      @client.request("follow_up", message_params(message, images)).value!(timeout: DEFAULT_ACK_TIMEOUT)
+    #
+    # Without a block this is fire-and-forget: it queues the message and
+    # returns self. With a block it drains the resulting agent cycle
+    # race-free — the subscription is established *before* the message is
+    # sent, so no events are missed — yielding each Event until agent_end
+    # and returning self. Prefer the block form to consume a follow-up;
+    # the standalone `events` drain only works if you subscribe first.
+    def follow_up(message, images: nil, event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
+      params = message_params(message, images)
+      unless block
+        @client.request("follow_up", params).value!(timeout: DEFAULT_ACK_TIMEOUT)
+        return self
+      end
+
+      event_stream("follow_up", params, event_timeout: event_timeout).each(&block)
       self
     end
 
