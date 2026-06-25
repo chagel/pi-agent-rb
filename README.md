@@ -14,7 +14,7 @@ building interactive agent UIs (web, TUI) on top of pi.
 
 - Ruby 3.3+
 - `pi` on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
-- This gem is pinned against pi `0.79.10`; other versions may work but are not verified.
+- This gem is pinned against pi `0.80.2`; other versions may work but are not verified.
 
 ## Installation
 
