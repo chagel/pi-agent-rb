@@ -69,7 +69,7 @@ end
 
 Other session methods:
 
-- Prompting: `steer`, `follow_up`, `abort`
+- Prompting: `steer`, `follow_up`, `events`, `abort`
 - Model: `set_model`, `cycle_model`, `available_models`, `set_thinking`
 - State: `get_state`, `messages`, `last_assistant_text`, `session_stats`
 - Context: `compact`
@@ -78,6 +78,26 @@ Other session methods:
 
 `set_model` accepts either `set_model("anthropic/claude-sonnet-4-5")` or
 `set_model("anthropic", "claude-sonnet-4-5")`.
+
+A `prompt` streams one agent cycle (`agent_start`..`agent_end`). A message
+queued with `follow_up` runs in a *later* cycle; pass a block to `follow_up`
+to drain that cycle. Like `prompt`, it yields each `Event` until `agent_end`:
+
+```ruby
+PiAgent.session do |session|
+  session.prompt("Draft a haiku") { |e| print e.delta if e.type == :message_update }
+  session.follow_up("Now translate it to French") { |e| print e.delta if e.type == :message_update }
+end
+```
+
+The block form is race-free: `follow_up` subscribes to the event stream
+*before* sending the message, so none of the cycle's events are missed.
+
+`events` is a lower-level, prompt-less drain of the same stream. Because it
+subscribes lazily when iteration begins, it only works when you subscribe
+*before* the cycle starts — e.g. begin iterating it from a thread, then
+trigger the cycle. For the common follow-up case, prefer the block form
+above.
 
 ### Images
 
