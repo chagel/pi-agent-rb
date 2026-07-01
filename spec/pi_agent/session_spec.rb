@@ -76,6 +76,18 @@ RSpec.describe PiAgent::Session do
                   { "entryId" => "e1", "text" => "first prompt" },
                   { "entryId" => "e2", "text" => "second prompt" }
                 ] })
+      when "get_entries"
+        entries = [
+          { "type" => "message", "id" => "e1", "parentId" => nil },
+          { "type" => "message", "id" => "e2", "parentId" => "e1" }
+        ]
+        entries = entries.drop(1) if msg["since"] == "e1"
+        ack(msg, "data" => { "entries" => entries, "leafId" => "e2" })
+      when "get_tree"
+        ack(msg, "data" => { "tree" => [
+                  { "entry" => { "id" => "e1", "parentId" => nil },
+                    "children" => [{ "entry" => { "id" => "e2", "parentId" => "e1" }, "children" => [] }] }
+                ], "leafId" => "e2" })
       when "fork"
         ack(msg, "data" => { "text" => "from:\#{msg["entryId"]}", "cancelled" => false })
       when "clone"
@@ -313,6 +325,36 @@ RSpec.describe PiAgent::Session do
         { "entryId" => "e2", "text" => "second prompt" }
       ]
     )
+  ensure
+    session&.close
+  end
+
+  it "lists session entries in append order" do
+    session = build_session
+    result = session.entries
+
+    expect(result["entries"].map { |e| e["id"] }).to eq(%w[e1 e2])
+    expect(result["leafId"]).to eq("e2")
+  ensure
+    session&.close
+  end
+
+  it "passes a since cursor to get_entries" do
+    session = build_session
+    result = session.entries(since: "e1")
+
+    expect(result["entries"].map { |e| e["id"] }).to eq(%w[e2])
+  ensure
+    session&.close
+  end
+
+  it "fetches the session tree" do
+    session = build_session
+    result = session.tree
+
+    expect(result["tree"].first["entry"]["id"]).to eq("e1")
+    expect(result["tree"].first["children"].first["entry"]["id"]).to eq("e2")
+    expect(result["leafId"]).to eq("e2")
   ensure
     session&.close
   end
