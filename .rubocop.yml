@@ -28,8 +28,10 @@ Metrics/MethodLength:
   Exclude:
     - 'spec/**/*'
 
+# Session is a thin 1:1 wrapper over the pi RPC command surface, which grows
+# as upstream adds commands (get_entries/get_tree in pi 0.80.3, etc.).
 Metrics/ClassLength:
-  Max: 150
+  Max: 200
 
 # Keyword arguments are self-documenting; they don't carry the
 # positional-argument readability cost this cop guards against.

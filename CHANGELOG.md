@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-06-30
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.3`. This release
+  adds two RPC commands to the protocol surface (`get_entries`, `get_tree`),
+  a package `./rpc-entry` export for launching pi directly in RPC mode, and
+  a raft of SDK/library-level changes (Claude Sonnet 5 support, `gpt-5.5` as
+  the default OpenAI model, provider/streaming fixes). The existing RPC
+  commands this gem drives are unchanged.
+
+### Added
+- `Session#entries(since:)` wraps the new `get_entries` RPC command: session
+  entries in append order, including pre-compaction history and abandoned
+  branches. Pass `since:` (a stable entry id) as a durable cursor to fetch
+  only entries after it. Returns `{ "entries" => [...], "leafId" => ... }`.
+- `Session#tree` wraps the new `get_tree` RPC command: the session as a tree
+  of entries. Returns `{ "tree" => [...], "leafId" => ... }`.
+
 ## [0.1.10] - 2026-06-25
 
 ### Changed

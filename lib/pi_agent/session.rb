@@ -188,6 +188,24 @@ module PiAgent
       request_data("get_fork_messages").fetch("messages", [])
     end
 
+    # Session entries in append order (excluding the session header). Unlike
+    # `messages`, this includes pre-compaction history and abandoned branches.
+    # Entry ids are stable, so pass `since:` (the last entry id you have seen)
+    # to get only entries strictly after it — a durable cursor across restarts.
+    # Returns { "entries" => [...], "leafId" => <id or nil> }.
+    def entries(since: nil)
+      params = {}
+      params[:since] = since if since
+      request_data("get_entries", params)
+    end
+
+    # The session as a tree of entries. Each node is
+    # { "entry" =>, "children" => [...], "label"? =>, "labelTimestamp"? => }.
+    # Returns { "tree" => [...], "leafId" => <id or nil> }.
+    def tree
+      request_data("get_tree")
+    end
+
     # Fork a new branch from a previous user message (an entryId from
     # `fork_messages`). Returns { "text" => <forked-from text>,
     # "cancelled" => bool }; `cancelled` is true if an extension vetoed it.
