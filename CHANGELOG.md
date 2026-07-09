@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-07-09
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.5` (from
+  `0.80.3`). This range is a library/SDK and provider maintenance batch:
+  Claude Sonnet 5 on Copilot and Bedrock prompt caching, GPT-5.6 metadata,
+  refreshed model catalogs, bash-timeout validation, extension hooks
+  (`before_provider_headers`, `InlineExtension`), session storage exports
+  (`InMemorySessionStorage`, `JsonlSessionStorage`), custom jsonl session
+  header metadata, and numerous provider/streaming fixes. No new RPC
+  commands were added to the protocol surface this gem drives, so the
+  client API is unchanged — this is a pin bump only.
+
 ## [0.1.11] - 2026-06-30
 
 ### Changed
