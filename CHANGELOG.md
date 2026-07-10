@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-07-10
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.6` (from
+  `0.80.5`). This is a CLI/SDK/library maintenance batch: an opt-in `max`
+  thinking level (above `xhigh`, exposed across CLI, SDK, RPC model
+  selection, and themes), request-wide input-token pricing tiers for
+  long-context cost accounting, `~` home-directory expansion for the
+  `shellPath` setting, plus fixes to post-compaction output-token
+  budgeting, GPT-5.4/5.5/5.6 long-context cost/metadata, and Anthropic
+  thinking-block preservation. No new RPC commands were added to the
+  protocol surface this gem drives, so the client API is unchanged — this
+  is a pin bump only.
+
 ## [0.1.12] - 2026-07-09
 
 ### Changed
