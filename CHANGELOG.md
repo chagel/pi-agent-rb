@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-07-15
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.7` (from
+  `0.80.6`). This is a CLI/SDK/library maintenance batch: cache-friendly
+  dynamic tool loading for extension tools (preserving prompt-cache
+  prefixes on supported Anthropic and OpenAI Responses models), a `Ctrl+X`
+  shortcut to copy the last/selected assistant message, native `xhigh` and
+  `max` thinking levels for Claude Fable 5 across generated provider
+  catalogs, inherited `toolChoice` support for OpenAI/Codex Responses, plus
+  numerous provider/streaming fixes (OpenRouter context windows and session
+  IDs, Bedrock auth, Cloudflare Workers AI credentials, Azure OpenAI
+  reasoning replay) and removal of the system prompt's current date to fix
+  cross-date cache invalidation. One SDK-level breaking change: the
+  `openai-responses` `compat.sendSessionIdHeader` flag in `models.json` was
+  removed in favor of `compat.sessionAffinityFormat`; this does not affect
+  the RPC command surface this gem drives. No new RPC commands were added,
+  so the client API is unchanged — this is a pin bump only.
+
 ## [0.1.13] - 2026-07-10
 
 ### Changed

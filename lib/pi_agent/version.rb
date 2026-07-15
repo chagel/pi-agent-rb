@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module PiAgent
-  VERSION = "0.1.13"
+  VERSION = "0.1.14"
 
   # Pinned upstream pi-coding-agent version this gem is verified against.
   # See: https://www.npmjs.com/package/@earendil-works/pi-coding-agent
-  SUPPORTED_PI_VERSION = "0.80.6"
+  SUPPORTED_PI_VERSION = "0.80.7"
 end
