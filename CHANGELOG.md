@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-07-16
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.9` (from
+  `0.80.8`). Upstream adds Kimi K3 support across built-in providers (Kimi
+  Coding, Moonshot AI, Moonshot AI China, OpenRouter, Vercel AI Gateway)
+  with deferred tool loading for extension-driven tool activation, switches
+  xAI login to a prefilled device-authorization flow with Grok 4.5 as the
+  default model, and removes older Grok variants from the built-in xAI
+  catalog. All of these are provider/extension concerns; no new RPC
+  commands were added and the JSONL RPC surface this gem drives is
+  unchanged — this is a pin bump only.
+
 ## [0.1.15] - 2026-07-16
 
 ### Changed
