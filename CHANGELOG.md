@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-07-16
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.8` (from
+  `0.80.7`). This release unifies model runtime and provider authentication:
+  a new `ModelRuntime` centralizes model configuration, provider-owned
+  `/login`, and dynamic provider catalogs; `/model` now refreshes configured
+  providers in the background (with `pi update --models` to force an
+  immediate catalog refresh); and xAI gains device-code OAuth login with
+  Grok 4.5 Responses support (low/medium/high thinking). Several SDK/
+  extension-facing breaking changes ship with it — the SDK's
+  `CreateAgentSessionOptions.authStorage`/`modelRegistry` options are
+  replaced by the async `modelRuntime` option, `AuthStorage` is no longer
+  exported, redundant `ModelRuntime` projections and
+  `ModelRegistry.getApiKeyAndHeaders()` are removed in favor of pi-ai
+  `Models` methods and `ModelRuntime.getAuth()`, and extension-facing
+  `ModelRegistry.refresh()` is now async. These are all SDK/extension
+  concerns and do not affect the RPC command surface this gem drives. No
+  new RPC commands were added, so the client API is unchanged — this is a
+  pin bump only.
+
 ## [0.1.14] - 2026-07-15
 
 ### Changed
