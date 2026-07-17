@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-07-17
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.80.10` (from
+  `0.80.9`). Upstream is a Kimi Coding maintenance patch: K3 now uses
+  adaptive thinking correctly (exposing its supported max level and
+  replaying empty-signature thinking blocks), inherited Kimi Coding
+  requests use Anthropic adaptive thinking effort without token budgets,
+  and inherited Kimi K3 pricing/thinking-level metadata plus catalog
+  generation for xAI models are fixed. All of these are provider/model
+  metadata concerns; no new RPC commands were added and the JSONL RPC
+  surface this gem drives is unchanged — this is a pin bump only.
+
 ## [0.1.16] - 2026-07-16
 
 ### Changed
