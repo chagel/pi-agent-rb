@@ -14,7 +14,7 @@ building interactive agent UIs (web, TUI) on top of pi.
 
 - Ruby 3.3+
 - `pi` on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
-- This gem is pinned against pi `0.80.10`; other versions may work but are not verified.
+- This gem is pinned against pi `0.81.0`; other versions may work but are not verified.
 
 ## Installation
 
@@ -70,7 +70,7 @@ end
 Other session methods:
 
 - Prompting: `steer`, `follow_up`, `events`, `abort`
-- Model: `set_model`, `cycle_model`, `available_models`, `set_thinking`
+- Model: `set_model`, `cycle_model`, `available_models`, `set_thinking`, `available_thinking_levels`
 - State: `get_state`, `messages`, `last_assistant_text`, `session_stats`
 - Context: `compact`
 - Sessions: `new_session`, `switch_session`, `fork`, `clone_session`,

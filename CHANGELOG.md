@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-07-21
+
+### Added
+- `Session#available_thinking_levels`, wrapping the new upstream
+  `get_available_thinking_levels` RPC command. Returns the thinking levels
+  supported by the current model as an array of strings (e.g.
+  `["off", "low", "medium", "high"]`), or `["off"]` for a model without
+  reasoning support. Complements the existing `set_thinking`.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.81.0` (from
+  `0.80.10`). This release adds local llama.cpp model management, full
+  provider extensions (extensions can register complete pi-ai providers),
+  Qwen Token Plan built-in providers, and expanded usage accounting for
+  tools, compaction, and branch summaries. The one change that touches the
+  JSONL RPC surface this gem drives is the new
+  `get_available_thinking_levels` command, now exposed as
+  `Session#available_thinking_levels`. The rest are
+  provider/model/accounting concerns that leave the existing RPC contract
+  unchanged.
+
 ## [0.1.17] - 2026-07-17
 
 ### Changed

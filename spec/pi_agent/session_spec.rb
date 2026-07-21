@@ -56,6 +56,8 @@ RSpec.describe PiAgent::Session do
         ack(msg, "data" => { "model" => { "id" => "next-model" }, "thinkingLevel" => "high", "isScoped" => false })
       when "get_available_models"
         ack(msg, "data" => { "models" => [{ "provider" => "anthropic", "id" => "claude-sonnet-4-5" }] })
+      when "get_available_thinking_levels"
+        ack(msg, "data" => { "levels" => %w[off low medium high] })
       when "get_state"
         ack(msg, "state" => { "model" => "stub-model", "thinkingLevel" => "off" })
       when "get_messages"
@@ -230,6 +232,13 @@ RSpec.describe PiAgent::Session do
   it "sets the thinking level" do
     session = build_session
     expect { session.set_thinking("medium") }.not_to raise_error
+  ensure
+    session&.close
+  end
+
+  it "lists available thinking levels" do
+    session = build_session
+    expect(session.available_thinking_levels).to eq(%w[off low medium high])
   ensure
     session&.close
   end
