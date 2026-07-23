@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-07-21
+
+### Added
+- `Session#available_thinking_levels`, wrapping the upstream
+  `get_available_thinking_levels` RPC command (added in pi `0.81.0`).
+  Returns the thinking levels supported by the current model as an array of
+  strings (e.g. `["off", "low", "medium", "high"]`), or `["off"]` for a
+  model without reasoning support. Complements the existing `set_thinking`.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.81.1` (from
+  `0.80.10`), covering both `0.81.0` and `0.81.1`.
+  - `0.81.0` adds local llama.cpp model management, full provider
+    extensions (extensions can register complete pi-ai providers), Qwen
+    Token Plan built-in providers, and expanded usage accounting for
+    tools, compaction, and branch summaries. The one change touching the
+    JSONL RPC surface this gem drives is the new
+    `get_available_thinking_levels` command, now exposed as
+    `Session#available_thinking_levels`.
+  - `0.81.1` adds resilient compaction/branch summaries that retry
+    transient provider failures, emitting new `summarization_retry_*`
+    lifecycle events (`summarization_retry_scheduled`,
+    `summarization_retry_attempt_start`, `summarization_retry_finished`) to
+    RPC consumers, plus checksummed release source archives. The retry
+    events flow through `PiAgent::Event` transparently — it preserves the
+    native payload on `#raw` and exposes `#type` as a symbol — so no gem
+    change is needed to consume them.
+  - No RPC commands or responses changed shape across either release, so
+    the rest is provider/model/accounting concerns that leave the existing
+    contract unchanged.
+
 ## [0.1.17] - 2026-07-17
 
 ### Changed

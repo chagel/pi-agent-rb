@@ -138,6 +138,13 @@ module PiAgent
       self
     end
 
+    # Thinking levels supported by the current model, as an array of strings
+    # (e.g. ["off", "low", "medium", "high"]). Returns ["off"] for a model
+    # without reasoning support.
+    def available_thinking_levels
+      request_data("get_available_thinking_levels").fetch("levels", [])
+    end
+
     def get_state
       @client.request("get_state").value!(timeout: DEFAULT_ACK_TIMEOUT)
     end
