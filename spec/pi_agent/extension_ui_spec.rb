@@ -131,6 +131,7 @@ RSpec.describe PiAgent::ExtensionUI do
           emit({ "type" => "message_update",
                  "assistantMessageEvent" => { "type" => "text_delta", "delta" => "answer=\#{msg["confirmed"]}" } })
           emit({ "type" => "agent_end", "messages" => [] })
+          emit({ "type" => "agent_settled" })
         end
       end
     RUBY
