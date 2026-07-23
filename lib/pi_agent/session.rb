@@ -138,6 +138,11 @@ module PiAgent
       self
     end
 
+    # Thinking levels the current model supports, as an array of strings.
+    def available_thinking_levels
+      request_data("get_available_thinking_levels").fetch("levels", [])
+    end
+
     def get_state
       @client.request("get_state").value!(timeout: DEFAULT_ACK_TIMEOUT)
     end

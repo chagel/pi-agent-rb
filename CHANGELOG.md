@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-07-22
+
+### Added
+- `Session#available_thinking_levels`, wrapping the new
+  `get_available_thinking_levels` RPC command (returns the thinking
+  levels the current model supports).
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.81.1` (from
+  `0.80.10`). Upstream 0.81.0 adds local llama.cpp model management,
+  full provider extensions, Qwen Token Plan providers, expanded usage
+  accounting (tool/compaction/branch-summary usage in session totals),
+  and the `get_available_thinking_levels` RPC command; 0.81.1 adds
+  verifiable release source archives, retries compaction/branch-summary
+  requests per the configured retry policy (emitting retry lifecycle
+  events to RPC consumers), and exposes `PI_SESSION_*` env vars to
+  bash tools. Existing RPC command signatures and the session JSONL
+  format are unchanged.
+
 ## [0.1.17] - 2026-07-17
 
 ### Changed
