@@ -13,12 +13,12 @@ module PiAgent
   # A pi RPC process hosts exactly one session, so there is no
   # create/select step — the Session *is* the running pi process.
   #
-  # v1 limitation: `prompt` streams one agent cycle (agent_start..agent_end).
-  # A message queued with `follow_up` runs in a later cycle; pass a block to
-  # `follow_up` to drain that cycle race-free (it subscribes before sending).
-  # `events` is a prompt-less drain of the same stream for when you have
-  # already subscribed before the cycle starts. Bidirectional extension UI
-  # is not yet surfaced here.
+  # `prompt` streams until the session-level run settles, including retries,
+  # automatic compaction retries, and queued continuations. A message queued
+  # with blockless `follow_up` runs after an active agent; pass a block to
+  # submit it as a streaming-aware prompt and drain it race-free. `events` is
+  # a prompt-less drain for when you have already subscribed before processing
+  # starts.
   class Session
     # Max time to wait for the next event before assuming the agent stalled.
     DEFAULT_EVENT_TIMEOUT = 300
@@ -29,11 +29,14 @@ module PiAgent
 
     def initialize(client)
       @client = client
+      @stream_state_mutex = Mutex.new
+      @event_stream_active = false
     end
 
-    # Submit a user prompt. With a block, yields each Event until the
-    # agent finishes (agent_end), then returns self. Without a block,
-    # returns an Enumerator of Events.
+    # Submit a user prompt. With a block, yields each Event until the agent
+    # fully settles (agent_settled), then returns self. This includes any
+    # automatic retry, compaction retry, or queued continuation. Without a
+    # block, returns an Enumerator of Events.
     #
     # `images` accepts PiAgent::Image objects, file path strings, or
     # raw ImageContent hashes — in any mix.
@@ -47,8 +50,8 @@ module PiAgent
     end
 
     # Drain the event stream without submitting a new prompt. With a block,
-    # yields each Event until the cycle finishes (agent_end) and returns
-    # self; without a block, returns an Enumerator of Events.
+    # yields each Event until the run fully settles (agent_settled) and
+    # returns self; without a block, returns an Enumerator of Events.
     #
     # The subscription is established lazily, when iteration begins — so any
     # cycle triggered *before* you call `events` may have already emitted
@@ -76,12 +79,12 @@ module PiAgent
 
     # Queue a follow-up message, delivered only after the agent stops.
     #
-    # Without a block this is fire-and-forget: it queues the message and
-    # returns self. With a block it drains the resulting agent cycle
-    # race-free — the subscription is established *before* the message is
-    # sent, so no events are missed — yielding each Event until agent_end
-    # and returning self. Prefer the block form to consume a follow-up;
-    # the standalone `events` drain only works if you subscribe first.
+    # Without a block this maps to pi's raw `follow_up` command: it only queues
+    # the message and returns self, so call it while an agent run is active.
+    # With a block it uses pi's streaming-aware `prompt` command, which starts
+    # a run when idle or queues a follow-up when busy. The subscription is
+    # established before sending, then yields through agent_settled and returns
+    # self. Prefer this form for a sequential, consumable follow-up.
     def follow_up(message, images: nil, event_timeout: DEFAULT_EVENT_TIMEOUT, &block)
       params = message_params(message, images)
       unless block
@@ -89,7 +92,12 @@ module PiAgent
         return self
       end
 
-      event_stream("follow_up", params, event_timeout: event_timeout).each(&block)
+      if message.start_with?("/")
+        raise SessionError, "Block-form follow_up does not support slash commands; use prompt instead"
+      end
+
+      params[:streamingBehavior] = "followUp"
+      event_stream("prompt", params, event_timeout: event_timeout).each(&block)
       self
     end
 
@@ -280,15 +288,34 @@ module PiAgent
     # iteration of the returned Enumerator so cleanup is deterministic.
     def subscribed_stream(event_timeout:, &before_pump)
       Enumerator.new do |yielder|
-        queue = Queue.new
-        handle = @client.subscribe { |msg| queue << msg }
+        claim_event_stream!
+
+        handle = nil
         begin
+          queue = Queue.new
+          handle = @client.subscribe { |msg| queue << msg }
           before_pump&.call
           pump_events(queue, yielder, event_timeout)
         ensure
-          @client.unsubscribe(handle)
+          @client.unsubscribe(handle) if handle
+          release_event_stream
         end
       end
+    end
+
+    def claim_event_stream!
+      claimed = @stream_state_mutex.synchronize do
+        next false if @event_stream_active
+
+        @event_stream_active = true
+      end
+      return if claimed
+
+      raise SessionError, "Another event stream is active; queue with blockless follow_up or wait for it to settle"
+    end
+
+    def release_event_stream
+      @stream_state_mutex.synchronize { @event_stream_active = false }
     end
 
     def pump_events(queue, yielder, event_timeout)

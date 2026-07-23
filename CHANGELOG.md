@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Session#prompt`, `#follow_up`, `#events`, and `#run` now drain through
+  `agent_settled` instead of stopping at the first `agent_end`. Since pi
+  0.80.4, `agent_end` marks only one low-level run and may be followed by an
+  automatic retry, compaction retry, or queued continuation; stopping there
+  could unsubscribe early and silently drop the final response events.
+- The block form of `Session#follow_up` now uses pi's streaming-aware `prompt`
+  command, so sequential follow-ups start when the session is idle while
+  the blockless form remains a direct, queue-only `follow_up` RPC command for
+  active runs. High-level streams are now single-flight per session because
+  pi events have no run IDs; overlapping streams raise `SessionError` instead
+  of potentially consuming another run's `agent_settled` event.
+
 ## [0.1.18] - 2026-07-21
 
 ### Added

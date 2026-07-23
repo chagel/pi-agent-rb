@@ -13,7 +13,7 @@ building interactive agent UIs (web, TUI) on top of pi.
 ## Requirements
 
 - Ruby 3.3+
-- `pi` on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
+- `pi` 0.80.4+ on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
 - This gem is pinned against pi `0.81.1`; other versions may work but are not verified.
 
 ## Installation
@@ -47,8 +47,10 @@ end
 A pi RPC process hosts one session, so there is no create/select step —
 `PiAgent.session` spawns `pi --mode rpc` and the session *is* that process.
 
-`prompt` yields each [`Event`](lib/pi_agent/event.rb) until the agent
-finishes (`agent_end`). Without a block it returns an `Enumerator`:
+`prompt` yields each [`Event`](lib/pi_agent/event.rb) until the agent fully
+finishes (`agent_settled`). Unlike `agent_end`, this includes any automatic
+retry, compaction retry, or queued continuation. Without a block it returns
+an `Enumerator`:
 
 ```ruby
 PiAgent.session do |session|
@@ -79,9 +81,10 @@ Other session methods:
 `set_model` accepts either `set_model("anthropic/claude-sonnet-4-5")` or
 `set_model("anthropic", "claude-sonnet-4-5")`.
 
-A `prompt` streams one agent cycle (`agent_start`..`agent_end`). A message
-queued with `follow_up` runs in a *later* cycle; pass a block to `follow_up`
-to drain that cycle. Like `prompt`, it yields each `Event` until `agent_end`:
+A `prompt` streams the complete session-level run
+(`agent_start`..`agent_settled`). Pass a block to `follow_up` for a sequential
+follow-up that starts immediately when idle (or queues when an agent is
+already running) and drains each `Event` through `agent_settled`:
 
 ```ruby
 PiAgent.session do |session|
@@ -90,14 +93,27 @@ PiAgent.session do |session|
 end
 ```
 
-The block form is race-free: `follow_up` subscribes to the event stream
-*before* sending the message, so none of the cycle's events are missed.
+The block form is race-free: `follow_up` subscribes to the event stream before
+sending a `prompt` with pi's `streamingBehavior: "followUp"`, so none of the
+cycle's events are missed. Use it only after the previous high-level stream has
+settled; pi events have no run IDs, so a session permits only one high-level
+event stream at a time. While a stream is active, use blockless `follow_up` to
+queue a continuation—the active stream will include it through
+`agent_settled`. The block form accepts plain agent input, not slash commands.
+
+Pi emits `agent_end` after each low-level agent run, but may then retry,
+compact and retry, or process queued continuations. It emits
+`agent_settled` only when no automatic work remains, so high-level streams
+use that as their completion boundary. Upstream added the RPC event in pi
+0.80.4; it is available in this gem's pinned pi 0.81.1.
 
 `events` is a lower-level, prompt-less drain of the same stream. Because it
 subscribes lazily when iteration begins, it only works when you subscribe
 *before* the cycle starts — e.g. begin iterating it from a thread, then
 trigger the cycle. For the common follow-up case, prefer the block form
-above.
+above. `prompt`, block-form `follow_up`, and `events` are single-flight on a
+session; starting another before the current stream settles raises
+`PiAgent::SessionError` rather than consuming an unrelated settlement event.
 
 ### Images
 

@@ -6,7 +6,7 @@ RSpec.describe PiAgent::Session do
   # Stub pi RPC server. Recognises the subset of commands the Session uses:
   #
   #   prompt    -> acks, then streams agent_start, two message_update deltas,
-  #                message_end, turn_end, agent_end.
+  #                message_end, turn_end, agent_end, agent_settled.
   #   set_model -> validated against pi's real contract (provider + modelId);
   #                rejected if either is missing.
   #   get_*     -> acks with a data/state payload.
@@ -28,20 +28,42 @@ RSpec.describe PiAgent::Session do
       when "prompt"
         ack(msg)
         emit({ "type" => "agent_start", "imagesReceived" => (msg["images"] || []).size })
+        if msg["streamingBehavior"] == "followUp"
+          emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "queued" } })
+          emit({ "type" => "agent_end", "messages" => [], "willRetry" => false })
+          emit({ "type" => "agent_settled" })
+          next
+        end
         emit({ "type" => "message_start" })
         emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "Hello" } })
         emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => " world" } })
         emit({ "type" => "message_end" })
         emit({ "type" => "turn_end" })
-        emit({ "type" => "agent_end", "messages" => [] })
+        emit({ "type" => "agent_end", "messages" => [], "willRetry" => msg["message"] == "retry" })
+        if msg["message"] == "retry"
+          emit({ "type" => "auto_retry_start", "attempt" => 1, "maxAttempts" => 3, "delayMs" => 0 })
+          emit({ "type" => "agent_start" })
+          emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => " after retry" } })
+          emit({ "type" => "agent_end", "messages" => [], "willRetry" => false })
+          emit({ "type" => "auto_retry_end", "success" => true, "attempt" => 1 })
+        elsif msg["message"] == "compact"
+          emit({ "type" => "compaction_start", "reason" => "overflow" })
+          emit({ "type" => "compaction_end", "reason" => "overflow", "willRetry" => true })
+          emit({ "type" => "agent_start" })
+          emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => " after compaction" } })
+          emit({ "type" => "agent_end", "messages" => [], "willRetry" => false })
+        elsif msg["message"] == "queued continuation"
+          emit({ "type" => "agent_start" })
+          emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => " after queued continuation" } })
+          emit({ "type" => "agent_end", "messages" => [], "willRetry" => false })
+        elsif msg["message"] == "slow"
+          sleep 0.5
+        end
+        emit({ "type" => "agent_settled" })
       when "follow_up"
-        # Ack, then run the queued message in its own agent cycle (as pi
-        # does once the agent stops) so a prompt-less `events` drain has
-        # something to consume.
+        # pi's raw follow_up command only queues. It does not start a run when
+        # idle; an active run will drain the queue before agent_settled.
         ack(msg)
-        emit({ "type" => "agent_start", "imagesReceived" => 0 })
-        emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "queued" } })
-        emit({ "type" => "agent_end", "messages" => [] })
       when "steer", "set_thinking_level", "set_session_name"
         ack(msg)
       when "set_model"
@@ -110,12 +132,14 @@ RSpec.describe PiAgent::Session do
     described_class.new(client.start)
   end
 
-  it "streams events from a prompt via a block until agent_end" do
+  it "streams events from a prompt via a block until agent_settled" do
     session = build_session
     types = []
     session.prompt("hi") { |event| types << event.type }
 
-    expect(types).to eq(%i[agent_start message_start message_update message_update message_end turn_end agent_end])
+    expect(types).to eq(
+      %i[agent_start message_start message_update message_update message_end turn_end agent_end agent_settled]
+    )
   ensure
     session&.close
   end
@@ -131,12 +155,63 @@ RSpec.describe PiAgent::Session do
     session&.close
   end
 
-  it "stops iterating at the terminal agent_end event" do
+  it "stops iterating at the terminal agent_settled event" do
     session = build_session
     last = nil
     session.prompt("hi") { |event| last = event.type }
 
-    expect(last).to eq(:agent_end)
+    expect(last).to eq(:agent_settled)
+  ensure
+    session&.close
+  end
+
+  it "continues past agent_end through an automatic retry until agent_settled" do
+    session = build_session
+    events = session.prompt("retry").to_a
+    types = events.map(&:type)
+
+    expect(types.count(:agent_end)).to eq(2)
+    expect(types).to include(:auto_retry_start, :auto_retry_end)
+    expect(events.filter_map(&:delta)).to include(" after retry")
+    expect(types.last).to eq(:agent_settled)
+  ensure
+    session&.close
+  end
+
+  it "continues past agent_end through overflow compaction until agent_settled" do
+    session = build_session
+    events = session.prompt("compact").to_a
+    types = events.map(&:type)
+
+    expect(types.count(:agent_end)).to eq(2)
+    expect(types).to include(:compaction_start, :compaction_end)
+    expect(events.filter_map(&:delta)).to include(" after compaction")
+    expect(types.last).to eq(:agent_settled)
+  ensure
+    session&.close
+  end
+
+  it "continues past agent_end through a queued continuation until agent_settled" do
+    session = build_session
+    events = session.prompt("queued continuation").to_a
+    types = events.map(&:type)
+
+    expect(types.count(:agent_end)).to eq(2)
+    expect(events.filter_map(&:delta)).to include(" after queued continuation")
+    expect(types.last).to eq(:agent_settled)
+  ensure
+    session&.close
+  end
+
+  it "rejects concurrent high-level event streams" do
+    session = build_session
+    first_stream = Thread.new { session.prompt("slow").to_a }
+    Thread.pass until first_stream.status == "sleep" || !first_stream.status
+
+    expect do
+      session.prompt("overlap", event_timeout: 1) { |_| nil }
+    end.to raise_error(PiAgent::SessionError, /Another event stream is active/)
+    first_stream.join(2)
   ensure
     session&.close
   end
@@ -157,12 +232,27 @@ RSpec.describe PiAgent::Session do
 
   it "drains the follow_up cycle race-free when given a block" do
     session = build_session
-    # Single-threaded, documented order: follow_up subscribes before sending,
-    # so the cycle it triggers is fully captured — no missed events, no hang.
+    # The block form uses prompt + streamingBehavior so it starts a run while
+    # idle (raw follow_up would only queue) and still queues when already busy.
     types = []
-    session.follow_up("now run it") { |event| types << event.type }
+    deltas = []
+    session.follow_up("now run it", event_timeout: 1) do |event|
+      types << event.type
+      deltas << event.delta if event.delta
+    end
 
-    expect(types).to eq(%i[agent_start message_update agent_end])
+    expect(types).to eq(%i[agent_start message_update agent_end agent_settled])
+    expect(deltas).to eq(["queued"])
+  ensure
+    session&.close
+  end
+
+  it "rejects slash commands in block-form follow_up instead of waiting for an agent event" do
+    session = build_session
+
+    expect do
+      session.follow_up("/extension-command", event_timeout: 1) { |_| nil }
+    end.to raise_error(PiAgent::SessionError, /does not support slash commands/)
   ensure
     session&.close
   end
@@ -175,17 +265,20 @@ RSpec.describe PiAgent::Session do
       session&.close
     end
 
-    it "drains the agent cycle triggered by a queued follow_up message" do
+    it "drains an agent cycle triggered after subscribing" do
       session = build_session
-      # The subscription must be live before the follow_up cycle is emitted,
-      # so consume `events` from a background thread, then trigger the cycle.
+      # The subscription must be live before the prompt cycle is emitted, so
+      # consume `events` in a background thread, then use the low-level client
+      # to trigger work without creating a second high-level event stream.
       types = []
       consumer = Thread.new { session.events { |event| types << event.type } }
       Thread.pass until consumer.status == "sleep" || !consumer.status # subscribed, blocked on the queue
-      session.follow_up("now run it")
+      session.client.request("prompt", message: "now run it").value!(timeout: 1)
       consumer.join(5)
 
-      expect(types).to eq(%i[agent_start message_update agent_end])
+      expect(types).to eq(
+        %i[agent_start message_start message_update message_update message_end turn_end agent_end agent_settled]
+      )
     ensure
       session&.close
     end
@@ -278,7 +371,7 @@ RSpec.describe PiAgent::Session do
     types = []
     session.run("hi") { |event| types << event.type }
 
-    expect(types.last).to eq(:agent_end)
+    expect(types.last).to eq(:agent_settled)
   ensure
     session&.close
   end
@@ -318,8 +411,8 @@ RSpec.describe PiAgent::Session do
     first = session.prompt("one").count
     second = session.prompt("two").count
 
-    expect(first).to eq(7)
-    expect(second).to eq(7)
+    expect(first).to eq(8)
+    expect(second).to eq(8)
   ensure
     session&.close
   end

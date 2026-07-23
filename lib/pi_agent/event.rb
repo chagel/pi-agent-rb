@@ -6,12 +6,13 @@ module PiAgent
   # dedicated accessor yet.
   #
   # Event types are exposed as Ruby symbols (e.g. `:text_delta`,
-  # `:agent_end`) matching the upstream protocol's `type` field.
+  # `:agent_settled`) matching the upstream protocol's `type` field.
   class Event
     # Event types that terminate a single prompt's event stream.
-    # `agent_end` fires when the agent finishes processing the current
-    # prompt cycle; we stop iterating then.
-    TERMINAL_TYPES = %i[agent_end].freeze
+    # `agent_end` only finishes one low-level run; retries, compaction, or
+    # queued continuations may follow. `agent_settled` is emitted once all
+    # automatic work has finished.
+    TERMINAL_TYPES = %i[agent_settled].freeze
 
     attr_reader :raw, :type
 

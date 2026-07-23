@@ -17,11 +17,12 @@ RSpec.describe PiAgent::Event do
     expect(event["turn"]).to eq(3)
   end
 
-  it "flags agent_end as terminal" do
-    expect(described_class.new({ "type" => "agent_end" }).terminal?).to be true
+  it "flags agent_settled as terminal" do
+    expect(described_class.new({ "type" => "agent_settled" }).terminal?).to be true
   end
 
-  it "does not flag turn_end or message_end as terminal" do
+  it "does not flag agent_end, turn_end, or message_end as terminal" do
+    expect(described_class.new({ "type" => "agent_end" }).terminal?).to be false
     expect(described_class.new({ "type" => "turn_end" }).terminal?).to be false
     expect(described_class.new({ "type" => "message_end" }).terminal?).to be false
   end
