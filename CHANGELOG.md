@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-24
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.82.0` (from
+  `0.81.1`). This is a provider/tooling and reliability batch; none of the
+  changes alter the JSONL RPC command/response shapes this gem drives, so
+  no gem API change is required.
+  - Adds constrained tool sampling (`Tool.constrainedSampling` with strict
+    JSON Schema and OpenAI Lark/regex grammars) plus `supportsGrammarTools`
+    / `supportsStrictTools` model capability metadata. This is an
+    SDK/extension tool-configuration concern, not part of the RPC surface.
+  - Adds OpenRouter OAuth PKCE and Kimi Code subscription sign-in via
+    `/login`, and exposes `PI_SESSION_ID`, `PI_SESSION_FILE`, `PI_PROVIDER`,
+    `PI_MODEL`, and `PI_REASONING_LEVEL` to commands run by built-in and
+    factory-created bash tools.
+  - Adds streaming `bash_execution_update` events for direct RPC bash
+    commands, correlated with request IDs. These flow through
+    `PiAgent::Event` transparently — it preserves the native payload on
+    `#raw` and exposes `#type` as a symbol — so no gem change is needed to
+    consume them.
+  - The remainder are inherited provider/retry/model-catalog fixes (DNS
+    lookup retries, OpenRouter cache breakpoints, protobufjs 7.6.5 security
+    bump, catalog mtime and llama.cpp context fixes) that leave the RPC
+    contract unchanged.
+
 ## [0.2.0] - 2026-07-23
 
 Minor (not patch) release: besides the stream-truncation fix, the block form
