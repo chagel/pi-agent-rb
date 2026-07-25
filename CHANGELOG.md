@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-07-24
+## [0.2.1] - 2026-07-25
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `0.82.0` (from
-  `0.81.1`). This is a provider/tooling and reliability batch; none of the
-  changes alter the JSONL RPC command/response shapes this gem drives, so
-  no gem API change is required.
+- Bumped pinned upstream `pi-coding-agent` version to `0.82.1` (from
+  `0.81.1`, rolling up `0.82.0` and `0.82.1`). This is a provider/tooling
+  and reliability batch; none of the changes alter the JSONL RPC
+  command/response shapes this gem drives, so no gem API change is required.
+  - `0.82.1` adds Claude Opus 5 (Anthropic and Amazon Bedrock, with
+    adaptive thinking), `ANTHROPIC_AUTH_TOKEN` bearer auth for
+    Anthropic-compatible gateways, and faster/more resilient model
+    catalogs (pi.dev revalidates with `If-None-Match`). It exposes the
+    `outputPad` setting to custom message renderers and fixes
+    compaction/branch summaries for header-only auth providers, `/models`
+    hiding of unavailable scoped models, startup context-file `EISDIR`
+    warnings, and llama.cpp catalog persistence. All provider/SDK/TUI
+    concerns, leaving the RPC contract unchanged.
+  - `0.82.0` details follow.
   - Adds constrained tool sampling (`Tool.constrainedSampling` with strict
     JSON Schema and OpenAI Lark/regex grammars) plus `supportsGrammarTools`
     / `supportsStrictTools` model capability metadata. This is an
