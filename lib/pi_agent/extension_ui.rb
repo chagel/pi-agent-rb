@@ -19,6 +19,7 @@ module PiAgent
   #   - fire-and-forget methods : return value ignored
   #
   # With no handler, dialogs are auto-cancelled so the agent never hangs.
+  # Handler failures also cancel the dialog; pass `on_error` to observe them.
   class ExtensionUI
     DIALOG_METHODS = %i[select confirm input editor].freeze
 
@@ -50,9 +51,10 @@ module PiAgent
       end
     end
 
-    def initialize(writer:, handler: nil)
+    def initialize(writer:, handler: nil, on_error: nil)
       @writer = writer
       @handler = handler
+      @on_error = on_error
       @threads = []
       @mutex = Mutex.new
     end
@@ -75,7 +77,21 @@ module PiAgent
     private
 
     def handle(request)
-      result = invoke_handler(request)
+      result, error = invoke_handler(request)
+      write_response(request, result)
+      notify_error(error, request) if error
+    end
+
+    def invoke_handler(request)
+      return [nil, nil] if @handler.nil?
+
+      [@handler.call(request), nil]
+    rescue StandardError => e
+      # A raising handler cancels the dialog rather than hanging the agent.
+      [nil, e]
+    end
+
+    def write_response(request, result)
       return unless request.dialog?
 
       @writer.write(response_for(request, result))
@@ -83,12 +99,10 @@ module PiAgent
       # Transport closed during shutdown; the response is moot.
     end
 
-    def invoke_handler(request)
-      return nil if @handler.nil?
-
-      @handler.call(request)
+    def notify_error(error, request)
+      @on_error&.call(error, request)
     rescue StandardError
-      # A raising handler cancels the dialog rather than hanging the agent.
+      # Error observers cannot prevent the fail-closed response.
       nil
     end
 

@@ -175,6 +175,32 @@ Returning `nil` from a dialog handler cancels it. With no handler,
 dialogs are auto-cancelled so the agent never hangs. Handlers run on
 their own thread and never block the event stream.
 
+If a handler raises, the dialog is cancelled as a fail-safe. Use
+`on_extension_ui_error` when the application needs to observe those failures:
+
+```ruby
+on_ui_error = lambda do |error, request|
+  logger.error(
+    "Extension UI handler failed",
+    error: error.class.name,
+    request_id: request.id,
+    method: request.method
+  )
+end
+
+PiAgent.session(
+  extension_ui: handler,
+  on_extension_ui_error: on_ui_error
+) do |session|
+  session.prompt("Refactor the parser") { |e| ... }
+end
+```
+
+The observer runs on the same worker thread and cannot change the fail-safe
+cancellation. If it raises, the dialog is still cancelled. Requests can contain
+sensitive titles, messages, options, or prefilled text, so avoid logging
+`request.raw` without application-specific filtering.
+
 ## Forking
 
 ```ruby

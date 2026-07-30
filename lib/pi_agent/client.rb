@@ -52,8 +52,9 @@ module PiAgent
     end
 
     def initialize(bin: nil, args: DEFAULT_ARGS, env: {}, cwd: nil, approve: nil,
-                   extension_ui: nil, transport_factory: nil)
+                   extension_ui: nil, on_extension_ui_error: nil, transport_factory: nil)
       @extension_ui_handler = extension_ui
+      @extension_ui_error_handler = on_extension_ui_error
       args = [*args, approve ? "--approve" : "--no-approve"] unless approve.nil?
       @transport_factory = transport_factory || build_subprocess_factory(bin, args, env, cwd)
       @pending = {}
@@ -70,7 +71,11 @@ module PiAgent
         on_message: method(:handle_message),
         on_stderr: method(:handle_stderr)
       )
-      @extension_ui = ExtensionUI.new(writer: @transport, handler: @extension_ui_handler)
+      @extension_ui = ExtensionUI.new(
+        writer: @transport,
+        handler: @extension_ui_handler,
+        on_error: @extension_ui_error_handler
+      )
       @transport.start
       self
     end
