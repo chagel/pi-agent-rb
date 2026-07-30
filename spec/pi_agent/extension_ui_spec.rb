@@ -91,6 +91,37 @@ RSpec.describe PiAgent::ExtensionUI do
       )
     end
 
+    it "reports a handler failure with its request before cancelling" do
+      writes = Queue.new
+      errors = Queue.new
+      handler = ->(_req) { raise ArgumentError, "invalid approval" }
+      observer = ->(error, req) { errors << [error, req] }
+      eui = described_class.new(writer: writer_double(writes), handler: handler, on_error: observer)
+      eui.dispatch(request(:select, title: "Approve?", options: %w[Allow Deny]))
+
+      error, req = errors.pop(timeout: 2)
+      expect(error).to be_a(ArgumentError)
+      expect(error.message).to eq("invalid approval")
+      expect(req.id).to eq("ui-1")
+      expect(req.method).to eq(:select)
+      expect(req.title).to eq("Approve?")
+      expect(writes.pop(timeout: 2)).to eq(
+        { type: "extension_ui_response", id: "ui-1", cancelled: true }
+      )
+    end
+
+    it "still cancels when the error observer raises" do
+      writes = Queue.new
+      handler = ->(_req) { raise "handler failed" }
+      observer = ->(_error, _req) { raise "observer failed" }
+      eui = described_class.new(writer: writer_double(writes), handler: handler, on_error: observer)
+      eui.dispatch(request(:confirm))
+
+      expect(writes.pop(timeout: 2)).to eq(
+        { type: "extension_ui_response", id: "ui-1", cancelled: true }
+      )
+    end
+
     it "auto-cancels dialogs when no handler is configured" do
       writes = Queue.new
       eui = described_class.new(writer: writer_double(writes))
@@ -144,6 +175,28 @@ RSpec.describe PiAgent::ExtensionUI do
       events = session.prompt("go").to_a
       expect(events.map(&:type)).not_to include(:extension_ui_request)
       expect(events.filter_map(&:delta)).to include("answer=true")
+    ensure
+      session&.close
+    end
+
+    it "forwards handler failures to the client's error observer" do
+      errors = Queue.new
+      handler = ->(_req) { raise ArgumentError, "bad interaction" }
+      observer = ->(error, req) { errors << [error, req.id] }
+      client = PiAgent::Client.new(
+        bin: "ruby",
+        args: ["-e", ROUNDTRIP_STUB],
+        extension_ui: handler,
+        on_extension_ui_error: observer
+      )
+      session = PiAgent::Session.new(client.start)
+
+      deltas = session.prompt("go").filter_map(&:delta)
+      error, request_id = errors.pop(timeout: 2)
+      expect(error).to be_a(ArgumentError)
+      expect(error.message).to eq("bad interaction")
+      expect(request_id).to eq("ui-1")
+      expect(deltas).to include("answer=")
     ensure
       session&.close
     end
