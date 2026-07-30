@@ -14,6 +14,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still fails closed as cancelled. Exceptions raised by the observer are also
   isolated so they cannot prevent the cancellation response.
 
+## [0.2.2] - 2026-07-30
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.83.0` (from
+  `0.82.1`). This is a CLI/provider/extension batch; none of the changes
+  alter the JSONL RPC command/response shapes this gem drives, so no gem
+  API change is required.
+  - Adds `pi auth print-api-key` and `pi auth print-bearer-token` for
+    exporting configured credentials to external clients, with automatic
+    OAuth refresh and configurable minimum token validity. These are CLI
+    subcommands, outside the RPC surface this gem speaks.
+  - Adds headless OpenRouter sign-in (paste the redirect URL or
+    authorization code when the loopback callback is unavailable) and
+    Claude Opus 5 on GitHub Copilot with adaptive thinking and a 1M
+    context window. Both are provider/`/login` concerns.
+  - Exposes the session's resolved model scope as `ctx.scopedModels` to
+    extensions, adds a `"pending"` stop reason for partial streaming
+    messages, and surfaces raw provider stop reasons across Google,
+    Anthropic, Bedrock, Mistral, and OpenAI (unmapped terminal reasons now
+    surface as provider errors). These are SDK/extension and
+    provider-stream concerns; RPC event payloads still flow through
+    `PiAgent::Event` transparently.
+  - **Breaking for TypeScript extensions only:** upstream upgraded bundled
+    TypeBox aliases to 1.3.7, removing deprecated APIs (`Type.Base`,
+    `Type.Awaited`, `Type.Promise`, `Type.AsyncIterator`, `Type.Iterator`,
+    `Type.Options`, `Value.Mutate`) and fixing nullable-array tool-argument
+    validation. This does not affect this Ruby gem, which does not author
+    TypeBox schemas.
+  - The remainder are inherited fixes (tool-output expansion status line,
+    file-backed `SYSTEM.md`/`APPEND_SYSTEM.md` startup listing, worktree
+    context double-load, llama.cpp usage accounting, session replacement
+    during active responses, Git package install retries, `/model`
+    selector, direct RPC bash bypassing `user_bash` handlers, resource
+    metadata, and assorted provider fixes) that leave the RPC contract
+    unchanged.
+
 ## [0.2.1] - 2026-07-25
 
 ### Changed
