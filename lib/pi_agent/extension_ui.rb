@@ -77,22 +77,26 @@ module PiAgent
     private
 
     def handle(request)
-      result = invoke_handler(request)
+      result, error = invoke_handler(request)
+      write_response(request, result)
+      notify_error(error, request) if error
+    end
+
+    def invoke_handler(request)
+      return [nil, nil] if @handler.nil?
+
+      [@handler.call(request), nil]
+    rescue StandardError => e
+      # A raising handler cancels the dialog rather than hanging the agent.
+      [nil, e]
+    end
+
+    def write_response(request, result)
       return unless request.dialog?
 
       @writer.write(response_for(request, result))
     rescue ProtocolError
       # Transport closed during shutdown; the response is moot.
-    end
-
-    def invoke_handler(request)
-      return nil if @handler.nil?
-
-      @handler.call(request)
-    rescue StandardError => e
-      # A raising handler cancels the dialog rather than hanging the agent.
-      notify_error(e, request)
-      nil
     end
 
     def notify_error(error, request)

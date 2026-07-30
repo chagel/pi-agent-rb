@@ -91,7 +91,7 @@ RSpec.describe PiAgent::ExtensionUI do
       )
     end
 
-    it "reports a handler failure with its request before cancelling" do
+    it "reports a handler failure with its request and cancels" do
       writes = Queue.new
       errors = Queue.new
       handler = ->(_req) { raise ArgumentError, "invalid approval" }
@@ -120,6 +120,27 @@ RSpec.describe PiAgent::ExtensionUI do
       expect(writes.pop(timeout: 2)).to eq(
         { type: "extension_ui_response", id: "ui-1", cancelled: true }
       )
+    end
+
+    it "cancels before invoking a blocking error observer" do
+      writes = Queue.new
+      observer_started = Queue.new
+      release_observer = Queue.new
+      handler = ->(_req) { raise "handler failed" }
+      observer = lambda do |_error, _req|
+        observer_started << true
+        release_observer.pop
+      end
+      eui = described_class.new(writer: writer_double(writes), handler: handler, on_error: observer)
+      eui.dispatch(request(:confirm))
+
+      expect(writes.pop(timeout: 2)).to eq(
+        { type: "extension_ui_response", id: "ui-1", cancelled: true }
+      )
+      expect(observer_started.pop(timeout: 2)).to be true
+    ensure
+      release_observer&.push(true)
+      eui&.shutdown
     end
 
     it "auto-cancels dialogs when no handler is configured" do
