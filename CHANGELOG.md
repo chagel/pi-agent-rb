@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-30
+
 ### Added
 - Added the optional `on_extension_ui_error` callback to `PiAgent.open`,
   `PiAgent.session`, and `PiAgent::Client`. Applications can now observe an
   Extension UI handler exception together with its request while the dialog
   still fails closed as cancelled. Exceptions raised by the observer are also
   isolated so they cannot prevent the cancellation response.
-
-## [0.2.2] - 2026-07-30
 
 ### Changed
 - Bumped pinned upstream `pi-coding-agent` version to `0.83.0` (from
