@@ -280,6 +280,35 @@ RSpec.describe PiAgent::Client do
       notifier2.join
     end
 
+    it "surfaces raw write errors immediately for old-shape factories" do
+      # A factory never handed on_close can never signal death, so the
+      # write-failure grace wait must be bypassed entirely — pre-0.3.0
+      # behavior, and no added latency for old-shape transports.
+      fake = Class.new do
+        def start = self
+        def write(_obj) = raise(PiAgent::ProtocolError, "Broken pipe writing to subprocess")
+        def close(**) = nil
+        def alive? = true
+      end.new
+      handlers = nil
+      factory = lambda do |on_message:, on_stderr:|
+        handlers = [on_message, on_stderr]
+        fake
+      end
+
+      c = described_class.new(transport_factory: factory).start
+      expect(handlers.size).to eq(2)
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { c.request("ping") }.to raise_error(PiAgent::ProtocolError, /Broken pipe/) do |e|
+        expect(e).not_to be_a(PiAgent::TransportClosedError)
+      end
+      expect { c.notify("ping") }.to raise_error(PiAgent::ProtocolError, /Broken pipe/)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+      expect(elapsed).to be < 0.5 # far below DEATH_NOTIFICATION_GRACE
+    end
+
     it "continues fanout to later subscribers when an earlier one raises" do
       c = client
       received = Queue.new

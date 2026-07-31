@@ -58,7 +58,10 @@ Minor (not patch) release: the transport contract gains an optional
     window), the failed write waits a bounded grace period
     (`Client::DEATH_NOTIFICATION_GRACE`) for the notification to land;
     the raw error stands only when no death is reported in time (or
-    after a caller-initiated close, where none is coming).
+    after a caller-initiated close, where none is coming). Old-shape
+    factories that were never handed `on_close:` bypass the grace wait
+    entirely — their raw write errors surface immediately, exactly as
+    before 0.3.0.
   - Subscriber callbacks are isolated during fanout: one raising
     subscriber no longer prevents the rest — including a Session
     stream's queue — from receiving a message.

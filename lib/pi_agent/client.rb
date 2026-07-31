@@ -80,14 +80,13 @@ module PiAgent
       @subscribers_mutex = Mutex.new
       @transport = nil
       @extension_ui = nil
-      @caller_closed = false
-      @close_reason = nil
-      @close_broadcast = nil
-      @close_cond = ConditionVariable.new
+      init_close_state
     end
 
     def start
-      @transport = @transport_factory.call(**transport_callbacks)
+      callbacks = transport_callbacks
+      @on_close_wired = callbacks.key?(:on_close)
+      @transport = @transport_factory.call(**callbacks)
       @extension_ui = ExtensionUI.new(
         writer: @transport,
         handler: @extension_ui_handler,
@@ -166,6 +165,17 @@ module PiAgent
     end
 
     private
+
+    # Close/death bookkeeping, all guarded by @pending_mutex except
+    # @close_broadcast (@subscribers_mutex) and @on_close_wired (set once
+    # in #start before any concurrency).
+    def init_close_state
+      @caller_closed = false
+      @close_reason = nil
+      @close_broadcast = nil
+      @close_cond = ConditionVariable.new
+      @on_close_wired = false
+    end
 
     # Default factory: resolve the pi binary now (so a missing binary
     # fails fast at construction) and build a subprocess transport on
@@ -313,9 +323,13 @@ module PiAgent
     # write error can beat the transport's own notification (the pipe
     # breaks while the subprocess transport is still draining stdout), so
     # wait a bounded grace period for it to land before letting the raw
-    # error stand. Never waits after a caller-initiated close — no
-    # notification is coming, and the raw error is the truth.
+    # error stand. Never waits when the factory was never handed on_close
+    # (an old-shape factory cannot signal death — raw errors surface
+    # immediately, exactly as before 0.3.0) or after a caller-initiated
+    # close — in both cases no notification is coming.
     def await_close_reason
+      return nil unless @on_close_wired
+
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEATH_NOTIFICATION_GRACE
       @pending_mutex.synchronize do
         loop do
