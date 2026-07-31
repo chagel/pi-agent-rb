@@ -19,6 +19,10 @@ module PiAgent
   # submit it as a streaming-aware prompt and drain it race-free. `events` is
   # a prompt-less drain for when you have already subscribed before processing
   # starts.
+  #
+  # If the transport dies mid-stream (pi killed, sandbox torn down), event
+  # streams raise TransportClosedError promptly instead of waiting out the
+  # event timeout — provided the transport reports death (see Transport).
   class Session
     # Max time to wait for the next event before assuming the agent stalled.
     DEFAULT_EVENT_TIMEOUT = 300
@@ -322,6 +326,10 @@ module PiAgent
       loop do
         msg = queue.pop(timeout: event_timeout)
         raise TimeoutError, "No event received within #{event_timeout}s" if msg.nil?
+        # Client's synthetic death notification: the transport is gone, no
+        # further events can arrive — end the stream now rather than
+        # timing out.
+        raise TransportClosedError, msg["reason"] if msg["type"] == Client::TRANSPORT_CLOSED_TYPE
 
         event = Event.new(msg)
         yielder << event

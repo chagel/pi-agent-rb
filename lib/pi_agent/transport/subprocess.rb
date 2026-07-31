@@ -21,14 +21,24 @@ module PiAgent
       # `cwd` sets the child's working directory — pi's built-in tools
       # (bash/read/edit/...) operate relative to it. nil leaves the
       # child in this process's working directory.
-      def initialize(command:, env: {}, cwd: nil, on_message: nil, on_stderr: nil)
+      #
+      # `on_close`, when given, is invoked exactly once with a short
+      # human-readable reason when the child reaches a terminal state on
+      # its own — exit, stdout EOF, fatal stream error. A caller-initiated
+      # #close is not reported. The notification fires after the remaining
+      # stdout has been dispatched, so responses that raced the death are
+      # not lost.
+      def initialize(command:, env: {}, cwd: nil, on_message: nil, on_stderr: nil, on_close: nil)
         @command = Array(command)
         @env = env.transform_keys(&:to_s)
         @cwd = cwd
         @on_message = on_message
         @on_stderr = on_stderr
+        @on_close = on_close
         @write_mutex = Mutex.new
         @closed = false
+        @close_notified = false
+        @close_notified_mutex = Mutex.new
       end
 
       def start
@@ -115,6 +125,12 @@ module PiAgent
         end
       rescue IOError, Errno::EBADF
         # Pipe closed; reader exits normally. (EOFError descends from IOError.)
+      rescue StandardError => e
+        fatal = e
+      ensure
+        # The stdout reader observes every terminal state (child exit closes
+        # the pipe), and by this point it has dispatched everything read.
+        notify_close(fatal) if channel == :stdout
       end
 
       def dispatch_stdout(line)
@@ -122,6 +138,47 @@ module PiAgent
         @on_message&.call(msg)
       rescue JSON::ParserError => e
         @on_stderr&.call("[pi-agent-rb] invalid JSON on stdout: #{e.message}: #{line.inspect}")
+      end
+
+      # Death notification: fire on_close exactly once. Owner-initiated
+      # #close marks @closed before teardown, so the resulting EOF is
+      # expected and stays silent.
+      def notify_close(fatal_error)
+        return if @on_close.nil? || closed?
+
+        already = @close_notified_mutex.synchronize do
+          was = @close_notified
+          @close_notified = true
+          was
+        end
+        return if already
+
+        @on_close.call(close_reason(fatal_error))
+      end
+
+      def closed?
+        @write_mutex.synchronize { @closed }
+      end
+
+      def close_reason(fatal_error)
+        return "fatal stream error: #{fatal_error.class}: #{fatal_error.message}" if fatal_error
+
+        status = reap_exit_status
+        if status.nil?
+          "stdout reached EOF (process still running)"
+        elsif status.signaled?
+          "process terminated by signal #{status.termsig}"
+        else
+          "process exited with status #{status.exitstatus}"
+        end
+      end
+
+      # The child normally exits right around stdout EOF; give it a moment
+      # to be reaped so the reason can carry the real exit status.
+      def reap_exit_status
+        @wait_thr&.join(1)&.value
+      rescue StandardError
+        nil
       end
 
       def terminate_process

@@ -220,10 +220,58 @@ end
 a pi extension vetoes the operation — that is an expected outcome, not
 an error.
 
+## Custom transports
+
+By default the client spawns `pi --mode rpc` as a local subprocess. Pass
+`transport_factory:` to run pi somewhere else — a container, a remote
+sandbox:
+
+```ruby
+factory = lambda do |on_message:, on_stderr:, on_close:|
+  MySandboxTransport.new(
+    sandbox: sandbox,
+    on_message: on_message, on_stderr: on_stderr, on_close: on_close
+  )
+end
+
+PiAgent.session(transport_factory: factory) do |session|
+  # pi runs inside the sandbox; the protocol flows through your transport
+end
+```
+
+The factory receives the client's handlers and returns an object
+implementing `#start`, `#write(Hash)`, `#close(timeout:)`, and `#alive?`.
+[`Transport`](lib/pi_agent/transport.rb) documents the full contract;
+[`Transport::Subprocess`](lib/pi_agent/transport/subprocess.rb) is the
+reference implementation.
+
+`on_close:` is the transport's death notification. Invoke it exactly
+once, with a short human-readable reason (e.g.
+`"process terminated by signal 9"`), when the transport reaches a
+terminal state *on its own* — process exit, read-stream EOF, fatal stream
+error — and only after delivering any stdout messages already read. Do
+not invoke it for a shutdown initiated through `#close`. When it fires,
+the client fails in-flight requests and live event streams promptly with
+`PiAgent::TransportClosedError` (reason on `#reason`) instead of letting
+them wait out the 30s ack / 300s event timeouts, and later
+`request`/`notify` calls fail fast with the same error.
+
+`on_close:` is optional and backward compatible: the client inspects the
+factory's parameters and passes the keyword only when the factory accepts
+it (explicitly or via `**kwargs`). An existing
+`(on_message:, on_stderr:)` factory keeps working unchanged — the
+timeouts then remain the only backstop when pi dies.
+
 ## Errors
 
 - A failed RPC command (`success: false`) raises `PiAgent::CommandError`,
   which carries the failing `#command` name.
+- If the transport dies out from under the client (pi OOM-killed, sandbox
+  torn down), in-flight requests and event streams raise
+  `PiAgent::TransportClosedError` promptly, with the death reason on
+  `#reason`. A caller-initiated `close` never raises it. This requires
+  the transport to report death — the bundled subprocess transport does;
+  for custom transports see [Custom transports](#custom-transports).
 - Agent-side errors arrive *in* the event stream, not as exceptions —
   inspect them with `Event#error?`, `#error_message`, and `#error_reason`
   (`"aborted"` vs `"error"`). This covers `extension_error` events and

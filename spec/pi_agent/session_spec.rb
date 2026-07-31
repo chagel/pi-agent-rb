@@ -28,6 +28,10 @@ RSpec.describe PiAgent::Session do
       when "prompt"
         ack(msg)
         emit({ "type" => "agent_start", "imagesReceived" => (msg["images"] || []).size })
+        if msg["message"] == "die"
+          emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "partial" } })
+          exit! 1
+        end
         if msg["streamingBehavior"] == "followUp"
           emit({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "queued" } })
           emit({ "type" => "agent_end", "messages" => [], "willRetry" => false })
@@ -199,6 +203,40 @@ RSpec.describe PiAgent::Session do
     expect(types.count(:agent_end)).to eq(2)
     expect(events.filter_map(&:delta)).to include(" after queued continuation")
     expect(types.last).to eq(:agent_settled)
+  ensure
+    session&.close
+  end
+
+  it "raises TransportClosedError promptly when the transport dies mid-stream" do
+    session = build_session
+    types = []
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    expect do
+      session.prompt("die") { |event| types << event.type }
+    end.to raise_error(PiAgent::TransportClosedError, /exited with status 1/)
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    # Events before the death still arrive, and the stream ends far below
+    # the 300s event timeout.
+    expect(types).to eq(%i[agent_start message_update])
+    expect(elapsed).to be < 5
+  ensure
+    session&.close
+  end
+
+  it "allows a new event stream after a mid-stream transport death" do
+    session = build_session
+    begin
+      session.prompt("die") { |_| nil }
+    rescue PiAgent::TransportClosedError
+      nil # the death we are arranging
+    end
+
+    # The single-flight stream slot was released; the next attempt fails
+    # fast on the dead transport rather than raising SessionError.
+    expect { session.prompt("hi") { |_| nil } }
+      .to raise_error(PiAgent::TransportClosedError)
   ensure
     session&.close
   end

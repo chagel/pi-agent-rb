@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-31
+
+Minor (not patch) release: the transport contract gains an optional
+`on_close:` death-notification callback and a new public error class.
+
+### Added
+- Transport death notification. When pi dies unexpectedly (OOM kill,
+  missing binary after spawn, sandbox/stream teardown), the client now
+  learns immediately instead of waiting out the 30s ack / 300s event
+  timeouts with a generic `TimeoutError`:
+  - Transports may accept an `on_close:` callable alongside
+    `on_message:`/`on_stderr:` and must invoke it exactly once, with a
+    short human-readable reason, when they reach a terminal state on
+    their own (process exit, stdout EOF, fatal stream error) — never for
+    a caller-initiated `#close`. `Transport::Subprocess` implements this
+    (reporting exit status or signal) and serves as the reference
+    implementation; the contract is documented in `Transport` and the
+    README's "Custom transports" section.
+  - On notification, `Client` rejects all in-flight request futures with
+    the new `PiAgent::TransportClosedError` (a `ProtocolError` subclass
+    carrying the death reason on `#reason`) and wakes subscribers with a
+    synthetic `Client::TRANSPORT_CLOSED_TYPE` message, which `Session`
+    event streams (`prompt`, block-form `follow_up`, `events`, `run`)
+    re-raise as `TransportClosedError`. Subsequent `request`/`notify`
+    calls fail fast with the same error instead of writing into a dead
+    transport. Handling is idempotent on both sides: transports notify
+    once, and the client tolerates duplicates.
+  - Backward compatible: `Client#start` inspects the transport factory's
+    parameters and passes `on_close:` only when the factory accepts the
+    keyword (or `**kwargs`). Existing `(on_message:, on_stderr:)`
+    factories keep their previous timeout-backstop behavior unchanged.
+
 ## [0.2.2] - 2026-07-30
 
 ### Added
