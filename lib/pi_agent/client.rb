@@ -34,6 +34,13 @@ module PiAgent
     # event namespace); carries the death reason under "reason".
     TRANSPORT_CLOSED_TYPE = "pi_agent/transport_closed"
 
+    # How long a failed write waits for a lagging death notification
+    # before surfacing the raw write error. A transport may report death
+    # slightly after the pipe error reaches the writer — the subprocess
+    # transport delays up to EXIT_DRAIN_TIMEOUT (1s) to drain stdout — so
+    # this sits a bit above that window.
+    DEATH_NOTIFICATION_GRACE = 1.5
+
     attr_reader :bin
 
     def self.resolve_bin(override = nil)
@@ -76,6 +83,7 @@ module PiAgent
       @caller_closed = false
       @close_reason = nil
       @close_broadcast = nil
+      @close_cond = ConditionVariable.new
     end
 
     def start
@@ -140,8 +148,12 @@ module PiAgent
     def close
       # A caller-initiated close is a clean shutdown: mark it first so the
       # transport teardown's own death notification is ignored and never
-      # surfaces as a TransportClosedError.
-      @pending_mutex.synchronize { @caller_closed = true }
+      # surfaces as a TransportClosedError. Waking the condition variable
+      # releases any write-failure grace wait — no notification is coming.
+      @pending_mutex.synchronize do
+        @caller_closed = true
+        @close_cond.broadcast
+      end
       # Drain extension UI handler threads while the transport is still
       # open so their responses can still be written.
       @extension_ui&.shutdown
@@ -257,6 +269,7 @@ module PiAgent
         return if @caller_closed || @close_reason
 
         @close_reason = reason
+        @close_cond.broadcast
         take_pending
       end
       message = { "type" => TRANSPORT_CLOSED_TYPE, "reason" => reason }
@@ -281,9 +294,9 @@ module PiAgent
     end
 
     # A write failed after the future was registered. Unregister it and,
-    # when the transport is known dead, surface the death rather than the
-    # raw pipe error. Returns the error to raise; the future (if still
-    # ours) is rejected with the same error so it never dangles.
+    # when the transport is dead, surface the death rather than the raw
+    # pipe error. Returns the error to raise; the future (if still ours)
+    # is rejected with the same error so it never dangles.
     def abandon_request(id, error)
       future = @pending_mutex.synchronize { @pending.delete(id) }
       final = close_error_or(error)
@@ -292,8 +305,29 @@ module PiAgent
     end
 
     def close_error_or(error)
-      reason = @pending_mutex.synchronize { @close_reason }
+      reason = await_close_reason
       reason ? TransportClosedError.new(reason) : error
+    end
+
+    # The death reason behind a failed write, or nil if none arrives. The
+    # write error can beat the transport's own notification (the pipe
+    # breaks while the subprocess transport is still draining stdout), so
+    # wait a bounded grace period for it to land before letting the raw
+    # error stand. Never waits after a caller-initiated close — no
+    # notification is coming, and the raw error is the truth.
+    def await_close_reason
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEATH_NOTIFICATION_GRACE
+      @pending_mutex.synchronize do
+        loop do
+          return @close_reason if @close_reason
+          return nil if @caller_closed
+
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          return nil if remaining <= 0
+
+          @close_cond.wait(@pending_mutex, remaining)
+        end
+      end
     end
   end
 end

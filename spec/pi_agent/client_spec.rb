@@ -239,6 +239,47 @@ RSpec.describe PiAgent::Client do
         .to raise_error(PiAgent::TransportClosedError, /death during write/)
     end
 
+    it "raises TransportClosedError when the write error beats the death notification" do
+      # The reverse ordering: the pipe breaks immediately, but the
+      # transport reports the death only later (as the subprocess
+      # transport's stdout drain window can make it do). The client must
+      # wait out that lag instead of surfacing the raw pipe error.
+      build_fake = lambda do
+        Class.new do
+          def start = self
+          def write(_obj) = raise(PiAgent::ProtocolError, "Broken pipe writing to subprocess")
+          def close(**) = nil
+          def alive? = false
+        end.new
+      end
+      new_client = lambda do
+        captured = nil
+        c = described_class.new(transport_factory: lambda { |on_close:, **|
+          captured = on_close
+          build_fake.call
+        }).start
+        [c, captured]
+      end
+      lagged_death = lambda do |on_close|
+        Thread.new do
+          sleep 0.3
+          on_close.call("process terminated by signal 9")
+        end
+      end
+
+      c, on_close = new_client.call
+      notifier = lagged_death.call(on_close)
+      expect { c.request("ping") }
+        .to raise_error(PiAgent::TransportClosedError, /terminated by signal 9/)
+      notifier.join
+
+      c2, on_close2 = new_client.call
+      notifier2 = lagged_death.call(on_close2)
+      expect { c2.notify("ping") }
+        .to raise_error(PiAgent::TransportClosedError, /terminated by signal 9/)
+      notifier2.join
+    end
+
     it "continues fanout to later subscribers when an earlier one raises" do
       c = client
       received = Queue.new

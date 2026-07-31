@@ -52,7 +52,13 @@ Minor (not patch) release: the transport contract gains an optional
     of timing out.
   - A `request`/`notify` whose write races the death raises
     `TransportClosedError` (rejecting and unregistering the request's
-    future) rather than surfacing the raw pipe error.
+    future) rather than surfacing the raw pipe error — in both orderings.
+    When the pipe error beats the transport's own notification (the
+    subprocess transport delays its report by up to a 1s stdout drain
+    window), the failed write waits a bounded grace period
+    (`Client::DEATH_NOTIFICATION_GRACE`) for the notification to land;
+    the raw error stands only when no death is reported in time (or
+    after a caller-initiated close, where none is coming).
   - Subscriber callbacks are isolated during fanout: one raising
     subscriber no longer prevents the rest — including a Session
     stream's queue — from receiving a message.

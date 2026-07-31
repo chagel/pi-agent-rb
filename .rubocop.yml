@@ -30,8 +30,11 @@ Metrics/MethodLength:
 
 # Session is a thin 1:1 wrapper over the pi RPC command surface, which grows
 # as upstream adds commands (get_entries/get_tree in pi 0.80.3, etc.).
+# Client carries the transport lifecycle state machine (request correlation,
+# death notification, clean-close semantics), whose small documented methods
+# are worth more than the line budget.
 Metrics/ClassLength:
-  Max: 200
+  Max: 230
 
 # Keyword arguments are self-documenting; they don't carry the
 # positional-argument readability cost this cop guards against.
