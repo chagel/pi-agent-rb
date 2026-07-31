@@ -254,7 +254,9 @@ not invoke it for a shutdown initiated through `#close`. When it fires,
 the client fails in-flight requests and live event streams promptly with
 `PiAgent::TransportClosedError` (reason on `#reason`) instead of letting
 them wait out the 30s ack / 300s event timeouts, and later
-`request`/`notify` calls fail fast with the same error.
+`request`/`notify` calls fail fast with the same error. Subscribers that
+register after the death get the notification replayed once, so an event
+stream started late still ends promptly.
 
 `on_close:` is optional and backward compatible: the client inspects the
 factory's parameters and passes the keyword only when the factory accepts

@@ -241,6 +241,23 @@ RSpec.describe PiAgent::Session do
     session&.close
   end
 
+  it "ends an event stream subscribed only after the transport died" do
+    session = build_session
+    died = Queue.new
+    session.client.subscribe do |msg|
+      died << msg if msg["type"] == PiAgent::Client::TRANSPORT_CLOSED_TYPE
+    end
+    session.client.request("prompt", message: "die").value!(timeout: 2)
+    expect(died.pop(timeout: 2)).not_to be_nil # death fully observed
+
+    # The stream subscribes after the one-shot close broadcast; the replay
+    # must end it promptly (a regression here raises TimeoutError instead).
+    expect { session.events(event_timeout: 5) { |_| nil } }
+      .to raise_error(PiAgent::TransportClosedError, /exited with status 1/)
+  ensure
+    session&.close
+  end
+
   it "rejects concurrent high-level event streams" do
     session = build_session
     first_stream = Thread.new { session.prompt("slow").to_a }

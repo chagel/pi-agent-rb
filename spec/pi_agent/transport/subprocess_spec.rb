@@ -143,6 +143,22 @@ RSpec.describe PiAgent::Transport::Subprocess do
       transport&.close
     end
 
+    it "reports the exit even when a descendant holds stdout open" do
+      reasons = Queue.new
+      # The child spawns a grandchild that inherits the stdout pipe, then
+      # exits: the pipe never reaches EOF, so only the independent exit
+      # watcher can observe the death.
+      orphaning_script = 'Process.detach(spawn("ruby", "-e", "sleep 5")); exit 0'
+      transport = described_class.new(
+        command: ["ruby", "-e", orphaning_script],
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      expect(reasons.pop(timeout: 4)).to match(/exited with status 0/)
+    ensure
+      transport&.close
+    end
+
     it "does not report a caller-initiated close as a death" do
       reasons = Queue.new
       transport = described_class.new(

@@ -15,6 +15,10 @@ module PiAgent
     class Subprocess
       DEFAULT_CHUNK_SIZE = 4096
       DEFAULT_CLOSE_TIMEOUT = 5
+      # How long to let the stdout reader drain buffered output after the
+      # child exits before reporting the death (or closing) anyway — a
+      # descendant that inherited the pipe can hold it open indefinitely.
+      EXIT_DRAIN_TIMEOUT = 1
 
       attr_reader :pid
 
@@ -27,7 +31,10 @@ module PiAgent
       # its own — exit, stdout EOF, fatal stream error. A caller-initiated
       # #close is not reported. The notification fires after the remaining
       # stdout has been dispatched, so responses that raced the death are
-      # not lost.
+      # not lost. Child exit is observed independently of the stdout pipe:
+      # if a descendant inherited the pipe and holds it open past the
+      # child's death, the notification still fires after a bounded drain
+      # window (EXIT_DRAIN_TIMEOUT) instead of waiting for EOF.
       def initialize(command:, env: {}, cwd: nil, on_message: nil, on_stderr: nil, on_close: nil)
         @command = Array(command)
         @env = env.transform_keys(&:to_s)
@@ -36,7 +43,7 @@ module PiAgent
         @on_stderr = on_stderr
         @on_close = on_close
         @write_mutex = Mutex.new
-        @closed = false
+        @owner_closed = false
         @close_notified = false
         @close_notified_mutex = Mutex.new
       end
@@ -49,13 +56,14 @@ module PiAgent
         @stderr.binmode
         @stdout_thread = Thread.new { read_loop(@stdout, :stdout) }
         @stderr_thread = Thread.new { read_loop(@stderr, :stderr) }
+        @exit_watch_thread = Thread.new { watch_exit }
         self
       end
 
       def write(obj)
         payload = "#{JSON.generate(obj)}\n"
         @write_mutex.synchronize do
-          raise ProtocolError, "Transport closed" if @closed
+          raise ProtocolError, "Transport closed" if @owner_closed
 
           @stdin.write(payload)
           @stdin.flush
@@ -65,13 +73,18 @@ module PiAgent
       end
 
       def close(timeout: DEFAULT_CLOSE_TIMEOUT)
-        return if mark_closed!
+        return if mark_owner_closed!
 
         safe_close(@stdin)
         wait_for_exit(timeout)
-        [@stdout_thread, @stderr_thread].compact.each(&:join)
+        readers = [@stdout_thread, @stderr_thread].compact
+        # Bounded drain: a descendant that inherited a pipe can hold it
+        # open past the child's exit; force the readers out by closing
+        # the pipes after the window rather than hanging the close.
+        readers.each { |t| t.join(EXIT_DRAIN_TIMEOUT) }
         safe_close(@stdout)
         safe_close(@stderr)
+        (readers + [@exit_watch_thread]).compact.each(&:join)
       end
 
       def alive?
@@ -90,11 +103,13 @@ module PiAgent
         args
       end
 
-      def mark_closed!
+      # Marks that the owner requested shutdown via #close (as opposed to
+      # the child dying on its own). Returns whether it was already set.
+      def mark_owner_closed!
         @write_mutex.synchronize do
-          return true if @closed
+          return true if @owner_closed
 
-          @closed = true
+          @owner_closed = true
           false
         end
       end
@@ -128,9 +143,24 @@ module PiAgent
       rescue StandardError => e
         fatal = e
       ensure
-        # The stdout reader observes every terminal state (child exit closes
-        # the pipe), and by this point it has dispatched everything read.
-        notify_close(fatal) if channel == :stdout
+        # Stdout EOF and fatal stream errors are terminal even if the child
+        # is somehow still running; by this point everything read has been
+        # dispatched. (Child exit itself is watched independently — see
+        # watch_exit — since a descendant holding the pipe can defer EOF.)
+        notify_close(fatal_error: fatal) if channel == :stdout
+      end
+
+      # Watches the child process itself, so its death is reported even
+      # when the stdout pipe stays open (a descendant that inherited the
+      # write end). Gives the stdout reader a bounded window to drain
+      # buffered output first, so responses that raced the exit are
+      # dispatched before the notification.
+      def watch_exit
+        status = @wait_thr.value
+        return if owner_closed?
+
+        @stdout_thread&.join(EXIT_DRAIN_TIMEOUT)
+        notify_close(status: status)
       end
 
       def dispatch_stdout(line)
@@ -141,10 +171,10 @@ module PiAgent
       end
 
       # Death notification: fire on_close exactly once. Owner-initiated
-      # #close marks @closed before teardown, so the resulting EOF is
-      # expected and stays silent.
-      def notify_close(fatal_error)
-        return if @on_close.nil? || closed?
+      # #close marks @owner_closed before teardown, so the resulting EOF
+      # and exit are expected and stay silent.
+      def notify_close(fatal_error: nil, status: nil)
+        return if @on_close.nil? || owner_closed?
 
         already = @close_notified_mutex.synchronize do
           was = @close_notified
@@ -153,17 +183,17 @@ module PiAgent
         end
         return if already
 
-        @on_close.call(close_reason(fatal_error))
+        @on_close.call(close_reason(fatal_error, status))
       end
 
-      def closed?
-        @write_mutex.synchronize { @closed }
+      def owner_closed?
+        @write_mutex.synchronize { @owner_closed }
       end
 
-      def close_reason(fatal_error)
+      def close_reason(fatal_error, status)
         return "fatal stream error: #{fatal_error.class}: #{fatal_error.message}" if fatal_error
 
-        status = reap_exit_status
+        status ||= reap_exit_status
         if status.nil?
           "stdout reached EOF (process still running)"
         elsif status.signaled?

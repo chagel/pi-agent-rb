@@ -36,8 +36,26 @@ Minor (not patch) release: the transport contract gains an optional
     once, and the client tolerates duplicates.
   - Backward compatible: `Client#start` inspects the transport factory's
     parameters and passes `on_close:` only when the factory accepts the
-    keyword (or `**kwargs`). Existing `(on_message:, on_stderr:)`
-    factories keep their previous timeout-backstop behavior unchanged.
+    keyword (or `**kwargs`). Introspection uses `Proc`/`Method#parameters`
+    for those types and `#method(:call).parameters` for other callable
+    objects, so a factory with an unrelated `parameters` method is not
+    misread. Existing `(on_message:, on_stderr:)` factories keep their
+    previous timeout-backstop behavior unchanged.
+  - `Transport::Subprocess` watches the child process independently of
+    the stdout pipe: if a descendant inherited the pipe and holds it open
+    past the child's death, the notification still fires after a bounded
+    drain window instead of waiting for EOF (and `#close` stays bounded
+    the same way).
+  - Subscribers registered after the death (e.g. a `Session#events`
+    stream started late or racing the death) receive the synthetic
+    close message replayed exactly once, so they fail promptly instead
+    of timing out.
+  - A `request`/`notify` whose write races the death raises
+    `TransportClosedError` (rejecting and unregistering the request's
+    future) rather than surfacing the raw pipe error.
+  - Subscriber callbacks are isolated during fanout: one raising
+    subscriber no longer prevents the rest — including a Session
+    stream's queue — from receiving a message.
 
 ## [0.2.2] - 2026-07-30
 
