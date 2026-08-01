@@ -14,7 +14,10 @@ module PiAgent
   # By default the client spawns `pi --mode rpc` as a local subprocess.
   # Pass `transport_factory:` — a callable `(on_message:, on_stderr:) ->
   # transport` — to run pi somewhere else (e.g. inside a remote sandbox).
-  # See Transport for the transport contract.
+  # A factory may additionally accept `on_close:` to report transport
+  # death; the keyword is passed only when the factory accepts it, so
+  # older two-keyword factories keep working. See Transport for the
+  # transport contract.
   #
   # Since pi 0.79.0 project-local inputs (.pi/settings.json, project
   # extensions, resources, packages) are trust-gated, and in RPC mode pi
@@ -24,6 +27,12 @@ module PiAgent
   class Client
     DEFAULT_BIN = "pi"
     DEFAULT_ARGS = ["--mode", "rpc"].freeze
+
+    # Synthetic message fanned out to subscribers when the transport dies,
+    # so event streams wake promptly instead of waiting out their timeouts.
+    # Never sent by pi (the "pi_agent/" prefix keeps it out of upstream's
+    # event namespace); carries the death reason under "reason".
+    TRANSPORT_CLOSED_TYPE = "pi_agent/transport_closed"
 
     attr_reader :bin
 
@@ -64,13 +73,15 @@ module PiAgent
       @subscribers_mutex = Mutex.new
       @transport = nil
       @extension_ui = nil
+      # Close/death bookkeeping, guarded by @pending_mutex except
+      # @close_broadcast (@subscribers_mutex).
+      @caller_closed = false
+      @close_reason = nil
+      @close_broadcast = nil
     end
 
     def start
-      @transport = @transport_factory.call(
-        on_message: method(:handle_message),
-        on_stderr: method(:handle_stderr)
-      )
+      @transport = @transport_factory.call(**transport_callbacks)
       @extension_ui = ExtensionUI.new(
         writer: @transport,
         handler: @extension_ui_handler,
@@ -83,21 +94,44 @@ module PiAgent
     def request(type, params = {})
       id = next_id
       future = Future.new
-      @pending_mutex.synchronize { @pending[id] = future }
+      @pending_mutex.synchronize do
+        raise TransportClosedError, @close_reason if @close_reason
+
+        @pending[id] = future
+      end
       payload = { id: id, type: type }.merge(params)
-      @transport.write(payload)
+      begin
+        @transport.write(payload)
+      rescue StandardError => e
+        raise abandon_request(id, e)
+      end
       future
     end
 
     def notify(type, params = {})
+      @pending_mutex.synchronize do
+        raise TransportClosedError, @close_reason if @close_reason
+      end
       payload = { type: type }.merge(params)
-      @transport.write(payload)
+      begin
+        @transport.write(payload)
+      rescue StandardError => e
+        raise close_error_or(e)
+      end
     end
 
+    # Subscribers registered after a transport death still learn about it:
+    # the synthetic TRANSPORT_CLOSED_TYPE message is replayed to them once,
+    # outside any lock. (The death fanout snapshots subscribers atomically
+    # with recording the broadcast, so nobody sees it twice.)
     def subscribe(&block)
       raise ArgumentError, "subscribe requires a block" unless block
 
-      @subscribers_mutex.synchronize { @subscribers << block }
+      replay = @subscribers_mutex.synchronize do
+        @subscribers << block
+        @close_broadcast
+      end
+      deliver([block], replay) if replay
       block
     end
 
@@ -106,6 +140,10 @@ module PiAgent
     end
 
     def close
+      # A caller-initiated close is a clean shutdown: mark it first so the
+      # transport teardown's own death notification is ignored and never
+      # surfaces as a TransportClosedError.
+      @pending_mutex.synchronize { @caller_closed = true }
       # Drain extension UI handler threads while the transport is still
       # open so their responses can still be written.
       @extension_ui&.shutdown
@@ -125,11 +163,39 @@ module PiAgent
     def build_subprocess_factory(bin, args, env, cwd)
       @bin = self.class.resolve_bin(bin)
       command = [@bin, *Array(args)]
-      lambda do |on_message:, on_stderr:|
+      lambda do |on_message:, on_stderr:, on_close:|
         Transport::Subprocess.new(
           command: command, env: env, cwd: cwd,
-          on_message: on_message, on_stderr: on_stderr
+          on_message: on_message, on_stderr: on_stderr, on_close: on_close
         )
+      end
+    end
+
+    def transport_callbacks
+      callbacks = {
+        on_message: method(:handle_message),
+        on_stderr: method(:handle_stderr)
+      }
+      callbacks[:on_close] = method(:handle_transport_close) if factory_accepts_on_close?
+      callbacks
+    end
+
+    # External factories predate on_close; pass it only to callables that
+    # declare the keyword (or **kwargs), so factories with the older
+    # `(on_message:, on_stderr:)` shape keep working unchanged.
+    def factory_accepts_on_close?
+      factory_parameters(@transport_factory).any? do |kind, name|
+        kind == :keyrest || (%i[keyreq key].include?(kind) && name == :on_close)
+      end
+    end
+
+    # Proc#parameters / Method#parameters describe the callable itself.
+    # Any other callable object may define an unrelated #parameters method,
+    # so inspect its #call method instead of trusting that name.
+    def factory_parameters(factory)
+      case factory
+      when Proc, Method then factory.parameters
+      else factory.method(:call).parameters
       end
     end
 
@@ -163,21 +229,76 @@ module PiAgent
     end
 
     def notify_subscribers(msg)
-      callbacks = @subscribers_mutex.synchronize { @subscribers.dup }
-      callbacks.each { |cb| cb.call(msg) }
+      deliver(@subscribers_mutex.synchronize { @subscribers.dup }, msg)
+    end
+
+    # Fan a message out, isolating each subscriber: one raising callback
+    # must not starve the rest (in particular, a raising logger must not
+    # keep a Session stream from seeing the death notification).
+    def deliver(callbacks, msg)
+      callbacks.each do |cb|
+        cb.call(msg)
+      rescue StandardError => e
+        handle_stderr("[pi-agent-rb] subscriber raised #{e.class}: #{e.message}")
+      end
     end
 
     def handle_stderr(line)
       # no-op by default; future versions may wire a logger
     end
 
-    def reject_pending(error)
+    # Transport-side death (process exit, stream EOF, fatal stream error).
+    # Idempotent, and a no-op after a caller-initiated #close — a clean
+    # shutdown is not an error. Fails all pending futures and wakes
+    # subscribers with a TRANSPORT_CLOSED_TYPE message so event streams
+    # end promptly instead of waiting out their timeouts. The broadcast is
+    # recorded atomically with the subscriber snapshot, so subscribers
+    # registered later get it replayed exactly once (see #subscribe).
+    def handle_transport_close(reason)
       pending = @pending_mutex.synchronize do
-        snapshot = @pending.values
-        @pending.clear
-        snapshot
+        return if @caller_closed || @close_reason
+
+        @close_reason = reason
+        take_pending
       end
+      message = { "type" => TRANSPORT_CLOSED_TYPE, "reason" => reason }
+      callbacks = @subscribers_mutex.synchronize do
+        @close_broadcast = message
+        @subscribers.dup
+      end
+      pending.each { |f| f.reject(TransportClosedError.new(reason)) }
+      deliver(callbacks, message)
+    end
+
+    def reject_pending(error)
+      pending = @pending_mutex.synchronize { take_pending }
       pending.each { |f| f.reject(error) }
+    end
+
+    # Must be called holding @pending_mutex.
+    def take_pending
+      snapshot = @pending.values
+      @pending.clear
+      snapshot
+    end
+
+    # A write failed after the future was registered. Unregister it and,
+    # when the transport is dead, surface the death rather than the raw
+    # pipe error. Returns the error to raise; the future (if still ours)
+    # is rejected with the same error so it never dangles.
+    def abandon_request(id, error)
+      future = @pending_mutex.synchronize { @pending.delete(id) }
+      final = close_error_or(error)
+      future&.reject(final)
+      final
+    end
+
+    # Surface the death rather than the raw pipe error when the transport
+    # has already been reported dead. When the write error beats the
+    # notification, the raw error stands — it fails just as promptly.
+    def close_error_or(error)
+      reason = @pending_mutex.synchronize { @close_reason }
+      reason ? TransportClosedError.new(reason) : error
     end
   end
 end

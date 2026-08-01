@@ -88,6 +88,89 @@ RSpec.describe PiAgent::Transport::Subprocess do
     transport&.close
   end
 
+  describe "on_close" do
+    it "reports a child that exits on its own, exactly once" do
+      reasons = Queue.new
+      transport = described_class.new(
+        command: ["ruby", "-e", EMITTER_SCRIPT],
+        on_message: ->(msg) {},
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      expect(reasons.pop(timeout: 2)).to match(/exited with status 0/)
+      expect(reasons.pop(timeout: 0.3)).to be_nil
+    ensure
+      transport&.close
+    end
+
+    it "delivers pending stdout messages before reporting the close" do
+      events = Queue.new
+      transport = described_class.new(
+        command: ["ruby", "-e", EMITTER_SCRIPT],
+        on_message: ->(msg) { events << [:message, msg] },
+        on_close: ->(reason) { events << [:close, reason] }
+      ).start
+
+      expect(events.pop(timeout: 2).first).to eq(:message)
+      expect(events.pop(timeout: 2).first).to eq(:message)
+      expect(events.pop(timeout: 2).first).to eq(:close)
+    ensure
+      transport&.close
+    end
+
+    it "includes a nonzero exit status in the reason" do
+      reasons = Queue.new
+      transport = described_class.new(
+        command: ["ruby", "-e", "exit 3"],
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      expect(reasons.pop(timeout: 2)).to match(/exited with status 3/)
+    ensure
+      transport&.close
+    end
+
+    it "reports the signal when the child is killed" do
+      reasons = Queue.new
+      transport = described_class.new(
+        command: ["ruby", "-e", "sleep"],
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      Process.kill("KILL", transport.pid)
+      expect(reasons.pop(timeout: 2)).to match(/terminated by signal 9/)
+    ensure
+      transport&.close
+    end
+
+    it "reports the exit even when a descendant holds stdout open" do
+      reasons = Queue.new
+      # The child spawns a grandchild that inherits the stdout pipe, then
+      # exits: the pipe never reaches EOF, so only the independent exit
+      # watcher can observe the death.
+      orphaning_script = 'Process.detach(spawn("ruby", "-e", "sleep 5")); exit 0'
+      transport = described_class.new(
+        command: ["ruby", "-e", orphaning_script],
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      expect(reasons.pop(timeout: 4)).to match(/exited with status 0/)
+    ensure
+      transport&.close
+    end
+
+    it "does not report a caller-initiated close as a death" do
+      reasons = Queue.new
+      transport = described_class.new(
+        command: ["ruby", "-e", ECHO_SCRIPT],
+        on_close: ->(reason) { reasons << reason }
+      ).start
+
+      transport.close
+      expect(reasons.pop(timeout: 0.3)).to be_nil
+    end
+  end
+
   it "runs the child process in the given working directory" do
     Dir.mktmpdir do |dir|
       received = Queue.new
