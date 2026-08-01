@@ -34,13 +34,6 @@ module PiAgent
     # event namespace); carries the death reason under "reason".
     TRANSPORT_CLOSED_TYPE = "pi_agent/transport_closed"
 
-    # How long a failed write waits for a lagging death notification
-    # before surfacing the raw write error. A transport may report death
-    # slightly after the pipe error reaches the writer — the subprocess
-    # transport delays up to EXIT_DRAIN_TIMEOUT (1s) to drain stdout — so
-    # this sits a bit above that window.
-    DEATH_NOTIFICATION_GRACE = 1.5
-
     attr_reader :bin
 
     def self.resolve_bin(override = nil)
@@ -80,13 +73,15 @@ module PiAgent
       @subscribers_mutex = Mutex.new
       @transport = nil
       @extension_ui = nil
-      init_close_state
+      # Close/death bookkeeping, guarded by @pending_mutex except
+      # @close_broadcast (@subscribers_mutex).
+      @caller_closed = false
+      @close_reason = nil
+      @close_broadcast = nil
     end
 
     def start
-      callbacks = transport_callbacks
-      @on_close_wired = callbacks.key?(:on_close)
-      @transport = @transport_factory.call(**callbacks)
+      @transport = @transport_factory.call(**transport_callbacks)
       @extension_ui = ExtensionUI.new(
         writer: @transport,
         handler: @extension_ui_handler,
@@ -147,12 +142,8 @@ module PiAgent
     def close
       # A caller-initiated close is a clean shutdown: mark it first so the
       # transport teardown's own death notification is ignored and never
-      # surfaces as a TransportClosedError. Waking the condition variable
-      # releases any write-failure grace wait — no notification is coming.
-      @pending_mutex.synchronize do
-        @caller_closed = true
-        @close_cond.broadcast
-      end
+      # surfaces as a TransportClosedError.
+      @pending_mutex.synchronize { @caller_closed = true }
       # Drain extension UI handler threads while the transport is still
       # open so their responses can still be written.
       @extension_ui&.shutdown
@@ -165,17 +156,6 @@ module PiAgent
     end
 
     private
-
-    # Close/death bookkeeping, all guarded by @pending_mutex except
-    # @close_broadcast (@subscribers_mutex) and @on_close_wired (set once
-    # in #start before any concurrency).
-    def init_close_state
-      @caller_closed = false
-      @close_reason = nil
-      @close_broadcast = nil
-      @close_cond = ConditionVariable.new
-      @on_close_wired = false
-    end
 
     # Default factory: resolve the pi binary now (so a missing binary
     # fails fast at construction) and build a subprocess transport on
@@ -279,7 +259,6 @@ module PiAgent
         return if @caller_closed || @close_reason
 
         @close_reason = reason
-        @close_cond.broadcast
         take_pending
       end
       message = { "type" => TRANSPORT_CLOSED_TYPE, "reason" => reason }
@@ -314,34 +293,12 @@ module PiAgent
       final
     end
 
+    # Surface the death rather than the raw pipe error when the transport
+    # has already been reported dead. When the write error beats the
+    # notification, the raw error stands — it fails just as promptly.
     def close_error_or(error)
-      reason = await_close_reason
+      reason = @pending_mutex.synchronize { @close_reason }
       reason ? TransportClosedError.new(reason) : error
-    end
-
-    # The death reason behind a failed write, or nil if none arrives. The
-    # write error can beat the transport's own notification (the pipe
-    # breaks while the subprocess transport is still draining stdout), so
-    # wait a bounded grace period for it to land before letting the raw
-    # error stand. Never waits when the factory was never handed on_close
-    # (an old-shape factory cannot signal death — raw errors surface
-    # immediately, exactly as before 0.3.0) or after a caller-initiated
-    # close — in both cases no notification is coming.
-    def await_close_reason
-      return nil unless @on_close_wired
-
-      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEATH_NOTIFICATION_GRACE
-      @pending_mutex.synchronize do
-        loop do
-          return @close_reason if @close_reason
-          return nil if @caller_closed
-
-          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          return nil if remaining <= 0
-
-          @close_cond.wait(@pending_mutex, remaining)
-        end
-      end
     end
   end
 end

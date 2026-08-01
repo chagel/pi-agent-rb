@@ -9,62 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2026-07-31
 
-Minor (not patch) release: the transport contract gains an optional
-`on_close:` death-notification callback and a new public error class.
-
 ### Added
 - Transport death notification. When pi dies unexpectedly (OOM kill,
-  missing binary after spawn, sandbox/stream teardown), the client now
-  learns immediately instead of waiting out the 30s ack / 300s event
-  timeouts with a generic `TimeoutError`:
+  missing binary after spawn, sandbox teardown), the client now learns
+  immediately instead of waiting out the 30s ack / 300s event timeouts
+  with a generic `TimeoutError`:
   - Transports may accept an `on_close:` callable alongside
-    `on_message:`/`on_stderr:` and must invoke it exactly once, with a
-    short human-readable reason, when they reach a terminal state on
-    their own (process exit, stdout EOF, fatal stream error) — never for
-    a caller-initiated `#close`. `Transport::Subprocess` implements this
-    (reporting exit status or signal) and serves as the reference
-    implementation; the contract is documented in `Transport` and the
-    README's "Custom transports" section.
-  - On notification, `Client` rejects all in-flight request futures with
-    the new `PiAgent::TransportClosedError` (a `ProtocolError` subclass
-    carrying the death reason on `#reason`) and wakes subscribers with a
-    synthetic `Client::TRANSPORT_CLOSED_TYPE` message, which `Session`
-    event streams (`prompt`, block-form `follow_up`, `events`, `run`)
-    re-raise as `TransportClosedError`. Subsequent `request`/`notify`
-    calls fail fast with the same error instead of writing into a dead
-    transport. Handling is idempotent on both sides: transports notify
-    once, and the client tolerates duplicates.
-  - Backward compatible: `Client#start` inspects the transport factory's
-    parameters and passes `on_close:` only when the factory accepts the
-    keyword (or `**kwargs`). Introspection uses `Proc`/`Method#parameters`
-    for those types and `#method(:call).parameters` for other callable
-    objects, so a factory with an unrelated `parameters` method is not
-    misread. Existing `(on_message:, on_stderr:)` factories keep their
-    previous timeout-backstop behavior unchanged.
-  - `Transport::Subprocess` watches the child process independently of
-    the stdout pipe: if a descendant inherited the pipe and holds it open
-    past the child's death, the notification still fires after a bounded
-    drain window instead of waiting for EOF (and `#close` stays bounded
-    the same way).
-  - Subscribers registered after the death (e.g. a `Session#events`
-    stream started late or racing the death) receive the synthetic
-    close message replayed exactly once, so they fail promptly instead
-    of timing out.
-  - A `request`/`notify` whose write races the death raises
-    `TransportClosedError` (rejecting and unregistering the request's
-    future) rather than surfacing the raw pipe error — in both orderings.
-    When the pipe error beats the transport's own notification (the
-    subprocess transport delays its report by up to a 1s stdout drain
-    window), the failed write waits a bounded grace period
-    (`Client::DEATH_NOTIFICATION_GRACE`) for the notification to land;
-    the raw error stands only when no death is reported in time (or
-    after a caller-initiated close, where none is coming). Old-shape
-    factories that were never handed `on_close:` bypass the grace wait
-    entirely — their raw write errors surface immediately, exactly as
-    before 0.3.0.
+    `on_message:`/`on_stderr:` and invoke it exactly once, with a short
+    human-readable reason, when they reach a terminal state on their
+    own — never for a caller-initiated `#close`. `Transport::Subprocess`
+    implements this (reporting exit status or signal, and watching the
+    child process itself so a descendant holding the stdout pipe open
+    can't defer the notification). The contract is documented in
+    `Transport` and the README's "Custom transports" section.
+  - On notification, `Client` rejects in-flight request futures with the
+    new `PiAgent::TransportClosedError` (a `ProtocolError` subclass with
+    the reason on `#reason`) and wakes subscribers with a synthetic
+    `Client::TRANSPORT_CLOSED_TYPE` message, which `Session` event
+    streams re-raise as `TransportClosedError`. Later `request`/`notify`
+    calls fail fast with the same error, and subscribers registered
+    after the death get the notification replayed once.
+  - Backward compatible: `Client#start` passes `on_close:` only when the
+    factory accepts the keyword (or `**kwargs`); existing
+    `(on_message:, on_stderr:)` factories keep their previous
+    timeout-backstop behavior unchanged.
   - Subscriber callbacks are isolated during fanout: one raising
-    subscriber no longer prevents the rest — including a Session
-    stream's queue — from receiving a message.
+    subscriber no longer prevents the rest from receiving a message.
 
 ## [0.2.2] - 2026-07-30
 

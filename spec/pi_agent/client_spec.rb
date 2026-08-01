@@ -239,74 +239,22 @@ RSpec.describe PiAgent::Client do
         .to raise_error(PiAgent::TransportClosedError, /death during write/)
     end
 
-    it "raises TransportClosedError when the write error beats the death notification" do
-      # The reverse ordering: the pipe breaks immediately, but the
-      # transport reports the death only later (as the subprocess
-      # transport's stdout drain window can make it do). The client must
-      # wait out that lag instead of surfacing the raw pipe error.
-      build_fake = lambda do
-        Class.new do
-          def start = self
-          def write(_obj) = raise(PiAgent::ProtocolError, "Broken pipe writing to subprocess")
-          def close(**) = nil
-          def alive? = false
-        end.new
-      end
-      new_client = lambda do
-        captured = nil
-        c = described_class.new(transport_factory: lambda { |on_close:, **|
-          captured = on_close
-          build_fake.call
-        }).start
-        [c, captured]
-      end
-      lagged_death = lambda do |on_close|
-        Thread.new do
-          sleep 0.3
-          on_close.call("process terminated by signal 9")
-        end
-      end
-
-      c, on_close = new_client.call
-      notifier = lagged_death.call(on_close)
-      expect { c.request("ping") }
-        .to raise_error(PiAgent::TransportClosedError, /terminated by signal 9/)
-      notifier.join
-
-      c2, on_close2 = new_client.call
-      notifier2 = lagged_death.call(on_close2)
-      expect { c2.notify("ping") }
-        .to raise_error(PiAgent::TransportClosedError, /terminated by signal 9/)
-      notifier2.join
-    end
-
-    it "surfaces raw write errors immediately for old-shape factories" do
-      # A factory never handed on_close can never signal death, so the
-      # write-failure grace wait must be bypassed entirely — pre-0.3.0
-      # behavior, and no added latency for old-shape transports.
+    it "surfaces the raw write error when no death has been reported" do
       fake = Class.new do
         def start = self
         def write(_obj) = raise(PiAgent::ProtocolError, "Broken pipe writing to subprocess")
         def close(**) = nil
         def alive? = true
       end.new
-      handlers = nil
-      factory = lambda do |on_message:, on_stderr:|
-        handlers = [on_message, on_stderr]
-        fake
-      end
+      # New-shape factory (accepts on_close via **) whose transport never
+      # reports a death: the raw error must pass through.
+      factory = ->(**) { fake }
 
       c = described_class.new(transport_factory: factory).start
-      expect(handlers.size).to eq(2)
-
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       expect { c.request("ping") }.to raise_error(PiAgent::ProtocolError, /Broken pipe/) do |e|
         expect(e).not_to be_a(PiAgent::TransportClosedError)
       end
       expect { c.notify("ping") }.to raise_error(PiAgent::ProtocolError, /Broken pipe/)
-      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-
-      expect(elapsed).to be < 0.5 # far below DEATH_NOTIFICATION_GRACE
     end
 
     it "continues fanout to later subscribers when an earlier one raises" do
