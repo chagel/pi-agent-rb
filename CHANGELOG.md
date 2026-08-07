@@ -8,10 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `0.84.0` (from
-  `0.83.0`). This is a CLI/TUI/provider/extension batch; none of the changes
-  alter the JSONL RPC command/response shapes this gem drives, so no gem
-  API change is required.
+- Bumped pinned upstream `pi-coding-agent` version to `0.84.1` (from
+  `0.83.0`). This is a CLI/TUI/auth/provider/extension batch; none of the
+  changes alter the JSONL RPC command/response shapes this gem drives, so
+  no gem API change is required.
+  - v0.84.1 adds the Qwen Token Plan Individual built-in provider, a
+    `pi auth check` credential preflight command, fullscreen selection /
+    scrolling improvements, and `terminate` support on blocked extension
+    `tool_call` events, plus assorted fixes (Bun standalone startup, LaTeX
+    spacing, fullscreen mouse volume, `Agent.reset()` during active runs).
+    All are CLI/TUI/auth/provider or TypeScript extension-API concerns,
+    outside the JSONL RPC surface this Ruby client speaks.
+  - v0.84.0 (folded into this bump) is a CLI/TUI/provider/extension batch;
+    none of the changes alter the JSONL RPC command/response shapes this
+    gem drives, so no gem API change is required.
   - v0.84.0 changes the JSON/RPC `message_update` events to emit only
     `assistantMessageEvent` deltas, removing the cumulative `message` and
     `assistantMessageEvent.partial` fields (upstream #7290). This gem
