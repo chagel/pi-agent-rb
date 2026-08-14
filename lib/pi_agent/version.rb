@@ -5,5 +5,5 @@ module PiAgent
 
   # Pinned upstream pi-coding-agent version this gem is verified against.
   # See: https://www.npmjs.com/package/@earendil-works/pi-coding-agent
-  SUPPORTED_PI_VERSION = "0.84.1"
+  SUPPORTED_PI_VERSION = "0.84.2"
 end

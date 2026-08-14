@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.84.2` (from
+  `0.84.1`). This is a CLI/TUI/provider/extension fix batch; none of the
+  changes alter the JSONL RPC command/response shapes this gem drives, so
+  no gem API change is required.
+  - v0.84.2 adds fullscreen transcript search, a configurable
+    `defaultTools` setting, and configurable fullscreen exit output, plus
+    a large batch of fixes (managed-tool downloads delaying TUI startup,
+    fullscreen search/scroll/selection, and many inherited provider fixes
+    across OpenAI Responses, Google/Vertex, Bedrock, DeepSeek, and Mistral).
+    All are CLI/TUI/provider or TypeScript extension-API concerns, outside
+    the JSONL RPC surface this Ruby client speaks.
+  - v0.84.2 fixes JSON and RPC `message_update` events dropping cumulative
+    usage during streaming (upstream #7982). This gem does not read usage
+    from streaming `message_update` deltas — it queries token usage via the
+    `get_session_stats` RPC (`Session#session_stats`) — so it is unaffected
+    and compatible as-is.
+
 ## [0.3.1] - 2026-08-07
 
 ### Changed
