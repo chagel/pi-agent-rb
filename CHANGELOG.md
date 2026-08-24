@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.84.3` (from
+  `0.84.2`). This is a CLI/TUI/provider/extension fix batch; none of the
+  changes alter the JSONL RPC command/response shapes this gem drives, so
+  no gem API change is required.
+  - v0.84.3 adds an optional Windows `powershell` tool, safer
+    stage-verify-activate managed updates, and `/thinking` model/thinking
+    controls (session-scoped selections persisted with `Ctrl+S`), plus a
+    large batch of fixes. These are CLI/TUI/provider or TypeScript
+    extension-API concerns, outside the JSONL RPC surface this Ruby client
+    speaks.
+  - v0.84.3 fixes JSON and RPC `toolcall_start` events omitting the tool
+    call id and name (upstream #7953). This gem does not consume
+    `toolcall_start` events, so it is unaffected and compatible as-is.
+  - The v0.84.3 breaking change (renaming the `GoogleThinkingLevel` type to
+    `GoogleApiThinkingLevel`) is a TypeScript SDK type, not part of the RPC
+    protocol, so it does not affect this gem.
 - Bumped pinned upstream `pi-coding-agent` version to `0.84.2` (from
   `0.84.1`). This is a CLI/TUI/provider/extension fix batch; none of the
   changes alter the JSONL RPC command/response shapes this gem drives, so
