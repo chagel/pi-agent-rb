@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.84.4` (from
+  `0.84.3`). This is a CLI/TUI/provider/extension feature-and-fix batch;
+  none of the changes alter the JSONL RPC command/response shapes this gem
+  drives, so no gem API change is required.
+  - v0.84.4 adds terminal capability overrides, `ui_prompt_start` /
+    `ui_prompt_end` extension events, fullscreen selection-copy controls,
+    and the experimental DeepSeek V4 Flash Vision model. These are
+    CLI/TUI/provider or TypeScript extension-API concerns, outside the
+    JSONL RPC surface this Ruby client speaks.
+  - v0.84.4 adds a new `clear_queue` RPC command to retrieve and remove
+    queued steering and follow-up messages (upstream #8432). This gem
+    drives the queue via `Session#steer` / `Session#follow_up` but does not
+    yet wrap `clear_queue`; the addition is purely additive and optional,
+    so existing behavior is unaffected. Exposing a `clear_queue` helper is
+    a possible future enhancement, not required for this bump.
+  - v0.84.4 fixes resumed sessions corrupting the next appended entry when
+    their JSONL file lacks a trailing newline (upstream #8345). This is a
+    pi-side session-file persistence fix, not part of the RPC stream this
+    gem's `Framer` parses, so it does not affect the gem.
+- Bumped pinned upstream `pi-coding-agent` version to `0.84.3` (from
+  `0.84.2`). This is a CLI/TUI/provider/extension fix batch; none of the
+  changes alter the JSONL RPC command/response shapes this gem drives, so
+  no gem API change is required.
+  - v0.84.3 adds an optional Windows `powershell` tool, safer
+    stage-verify-activate managed updates, and `/thinking` model/thinking
+    controls (session-scoped selections persisted with `Ctrl+S`), plus a
+    large batch of fixes. These are CLI/TUI/provider or TypeScript
+    extension-API concerns, outside the JSONL RPC surface this Ruby client
+    speaks.
+  - v0.84.3 fixes JSON and RPC `toolcall_start` events omitting the tool
+    call id and name (upstream #7953). This gem does not consume
+    `toolcall_start` events, so it is unaffected and compatible as-is.
+  - The v0.84.3 breaking change (renaming the `GoogleThinkingLevel` type to
+    `GoogleApiThinkingLevel`) is a TypeScript SDK type, not part of the RPC
+    protocol, so it does not affect this gem.
 - Bumped pinned upstream `pi-coding-agent` version to `0.84.2` (from
   `0.84.1`). This is a CLI/TUI/provider/extension fix batch; none of the
   changes alter the JSONL RPC command/response shapes this gem drives, so
