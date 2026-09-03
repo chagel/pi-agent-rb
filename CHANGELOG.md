@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-03
+
 ### Changed
 - Bumped pinned upstream `pi-coding-agent` version to `0.84.4` (from
   `0.84.3`). This is a CLI/TUI/provider/extension feature-and-fix batch;
