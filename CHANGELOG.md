@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.85.0` (from
+  `0.84.4`). This is a CLI/TUI/provider/SDK feature-and-fix batch; none of
+  the changes alter the JSONL RPC command/response shapes this gem drives,
+  so no gem API change is required.
+  - v0.85.0 adds persistent Claude thinking effort across supported
+    Anthropic transports, fullscreen transcript controls ("jump to latest
+    message"), and restorable in-memory sessions via
+    `SessionManager.inMemory()`. These are CLI/TUI/provider or TypeScript
+    SDK concerns, outside the JSONL RPC surface this Ruby client speaks.
+  - v0.85.0 restores the `@earendil-works/pi-coding-agent/client`
+    compatibility entry point (a TypeScript library import path), which
+    does not affect this gem's subprocess/JSONL transport.
+  - v0.85.0 fixes RPC abort reporting success without cancelling an
+    in-progress manual compaction (upstream #8920). This is a behavioral
+    fix to abort handling, not a change to the command/response shapes the
+    gem's `Framer` parses, so existing behavior is compatible.
+  - v0.85.0 fixes the built-in `bash`, `edit`, `find`, `grep`, `ls`,
+    `read`, and `write` tools ignoring `ctx.cwd` (upstream #8627) and the
+    `write` tool reporting UTF-16 code-unit counts as byte counts (#8979).
+    These are pi-side tool-execution fixes; the tools run inside pi and
+    their RPC event shapes are unchanged, so the gem is unaffected.
+  - Remaining v0.85.0 changes (provider stream/adapter fixes, model
+    catalog updates, managed fd/ripgrep download fixes, session-file and
+    session-share fixes) are CLI/TUI/provider or persistence concerns
+    outside the RPC stream this gem consumes.
+
 ## [0.3.2] - 2026-09-03
 
 ### Changed

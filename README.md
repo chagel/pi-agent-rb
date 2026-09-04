@@ -14,7 +14,7 @@ building interactive agent UIs (web, TUI) on top of pi.
 
 - Ruby 3.3+
 - `pi` 0.80.4+ on `PATH` (install via `npm i -g @earendil-works/pi-coding-agent`)
-- This gem is pinned against pi `0.84.4`; other versions may work but are not verified.
+- This gem is pinned against pi `0.85.0`; other versions may work but are not verified.
 
 ## Installation
 
@@ -105,7 +105,7 @@ Pi emits `agent_end` after each low-level agent run, but may then retry,
 compact and retry, or process queued continuations. It emits
 `agent_settled` only when no automatic work remains, so high-level streams
 use that as their completion boundary. Upstream added the RPC event in pi
-0.80.4; it is available in this gem's pinned pi 0.84.4.
+0.80.4; it is available in this gem's pinned pi 0.85.0.
 
 `events` is a lower-level, prompt-less drain of the same stream. Because it
 subscribes lazily when iteration begins, it only works when you subscribe
