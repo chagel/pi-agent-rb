@@ -8,10 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `0.85.0` (from
-  `0.84.4`). This is a CLI/TUI/provider/SDK feature-and-fix batch; none of
-  the changes alter the JSONL RPC command/response shapes this gem drives,
-  so no gem API change is required.
+- Bumped pinned upstream `pi-coding-agent` version to `0.85.1` (from
+  `0.84.4`, folding in `0.85.0`). These are CLI/TUI/provider/SDK
+  feature-and-fix batches; none of the changes alter the JSONL RPC
+  command/response shapes this gem drives, so no gem API change is required.
+  - v0.85.1 adds GPT-6 Astra via OpenAI API keys / Codex subscriptions and
+    faster Alt-held fullscreen mouse-wheel scrolling — provider and TUI
+    concerns outside the RPC surface.
+  - v0.85.1 fixes SDK import failures caused by 0.85.0 unintentionally
+    publishing internal experimental code (upstream #9132); the experimental
+    client/plugin subpaths are now source-only. Upstream explicitly notes the
+    supported local SDK and stdio RPC API are unchanged, so this gem's
+    subprocess/JSONL transport is unaffected.
+  - v0.85.1 also fixes configurable save keybindings in the model/thinking
+    selectors, mouse-hover selection/recenter behavior, and long prompt-cache
+    requests for GPT-5.6+ Responses models — all TUI/provider concerns
+    outside the RPC stream this gem consumes.
   - v0.85.0 adds persistent Claude thinking effort across supported
     Anthropic transports, fullscreen transcript controls ("jump to latest
     message"), and restorable in-memory sessions via
