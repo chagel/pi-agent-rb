@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-20
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.86.1` (from
+  `0.84.4`). This skips the intermediate `0.85.0`, `0.85.1`, and `0.86.0`
+  releases. Across all four releases, none of the changes alter the JSONL
+  RPC command/response shapes this gem drives, so no gem API change is
+  required.
+  - `0.85.0`/`0.85.1` are CLI/TUI/provider/SDK feature-and-fix batches:
+    persistent Claude thinking effort, fullscreen transcript controls,
+    restorable in-memory sessions (`SessionManager.inMemory()`), GPT-6
+    Astra, and a large batch of provider/streaming fixes. These are
+    CLI/TUI or TypeScript SDK/provider concerns, outside the JSONL RPC
+    surface this Ruby client speaks.
+  - `0.86.0` lists three breaking changes, all confined to the TypeScript
+    SDK/extension surface, not the JSONL RPC protocol: custom providers
+    now read normalized `TranscriptContext` values (`getCurrentSystemPrompt()` /
+    `getCurrentTools()`); `ToolCall.arguments` and `ToolResultMessage.details`
+    are restricted to JSON-compatible values; and the `user_bash` extension
+    hook now fails closed. This gem does not implement pi providers or
+    extensions, so these do not affect it.
+  - `0.86.0` also adds prompt cache warming, `/bug` reporting,
+    transcript-aware prompt/tool updates, an offline Radius model catalog,
+    and per-model compaction budgets — all CLI/TUI/SDK features outside the
+    RPC command surface. `0.86.1` adds the Meta Muse provider login plus a
+    batch of clipboard, `/bug`, and provider fixes.
+  - As with `0.84.4`, the additive `clear_queue` RPC command remains
+    unwrapped by this gem; exposing a `clear_queue` helper is a possible
+    future enhancement, not required for this bump.
+
 ## [0.3.2] - 2026-09-03
 
 ### Changed
