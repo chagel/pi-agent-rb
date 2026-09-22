@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-22
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `0.87.0` (from
+  `0.84.4`). This skips the intermediate `0.85.0`, `0.85.1`, `0.86.0`, and
+  `0.86.1` releases. Across all five releases, none of the changes alter
+  the JSONL RPC command/response shapes this gem drives, so no gem API
+  change is required.
+  - `0.85.0`/`0.85.1` are CLI/TUI/provider/SDK feature-and-fix batches:
+    persistent Claude thinking effort, fullscreen transcript controls,
+    restorable in-memory sessions (`SessionManager.inMemory()`), GPT-6
+    Astra, and a large batch of provider/streaming fixes. These are
+    CLI/TUI or TypeScript SDK/provider concerns, outside the JSONL RPC
+    surface this Ruby client speaks.
+  - `0.86.0`/`0.86.1` list breaking changes confined to the TypeScript
+    SDK/extension surface, not the JSONL RPC protocol: custom providers
+    now read normalized `TranscriptContext` values; `ToolCall.arguments`
+    and `ToolResultMessage.details` are restricted to JSON-compatible
+    values; and the `user_bash` extension hook now fails closed. They also
+    add prompt cache warming, `/bug` reporting, transcript-aware prompt/tool
+    updates, an offline Radius model catalog, per-model compaction budgets,
+    and the Meta Muse provider login. This gem implements neither pi
+    providers nor extensions, so none of this affects it.
+  - `0.87.0` adds canonical session context and extension boundaries,
+    full-transcript context extensions (`context_with_system`), and
+    per-model image input limits. Its breaking changes are all in the
+    TypeScript agent-core/extension API (`shouldStopAfterTurn` removed in
+    favor of `finishTurn`; a new `ContextEditEntry` in the `SessionEntry`
+    union; `SessionManager` made canonical for provider context; expanded
+    `TurnEndEvent`/`ExtensionEvent`). These are SDK/extension concerns and
+    do not change the JSONL RPC command/response shapes this gem drives.
+  - As with prior bumps, the additive `clear_queue` RPC command remains
+    unwrapped by this gem; exposing a `clear_queue` helper is a possible
+    future enhancement, not required for this bump.
+
 ## [0.3.2] - 2026-09-03
 
 ### Changed
