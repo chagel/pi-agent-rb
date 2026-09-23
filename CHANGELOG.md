@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.3] - 2026-09-23
+## [1.0.0] - 2026-09-23
+
+First stable release. The public API (`PiAgent.session` / `PiAgent.open`,
+`Session`, `Client`, `Event`, `Image`, the `Transport` contract, and the
+error classes) has been unchanged since 0.3.0 across pi 0.83 through 0.87,
+so this release marks it stable: from here on, breaking changes bump the
+major version per SemVer.
+
+No functional changes versus 0.3.2 beyond the pi pin bump below.
 
 ### Changed
 - Bumped pinned upstream `pi-coding-agent` version to `0.87.1` (from
