@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `0.99.1` (from
+- Bumped pinned upstream `pi-coding-agent` version to `0.99.2` (from
   `0.87.1`). Upstream jumped its numbering from the `0.87.x` line straight
-  to `0.99.0`/`0.99.1`; there are no intermediate `0.88`–`0.98` releases.
+  to `0.99.0`/`0.99.1`/`0.99.2`; there are no intermediate `0.88`–`0.98`
+  releases.
   None of the changes alter the JSONL RPC command/response shapes this gem
   drives, so no gem API change is required.
   - `0.99.0` is a large feature batch centered on the CLI/TUI and the
@@ -33,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`gpt-6.1-sol`) to the OpenAI, Azure OpenAI, and OpenAI Codex providers
     (now the default OpenAI Codex model) and fixes `/login` with OpenAI in
     the bundled release. No RPC surface change.
+  - `0.99.2` is an MCP/codemode and provider batch: MCP servers with the
+    default codemode exposure stay out of the codemode description and no
+    longer block the first prompt; adds `oauth.clientName` and an
+    `auth: { provider }` option for HTTP MCP servers, a `describeNamespace()`
+    codemode helper, Anthropic workload identity federation, and `/reload`
+    enabling newly added `defaultTools`. All changes are CLI/TUI, codemode,
+    or TypeScript SDK/provider concerns, outside the JSONL RPC surface this
+    gem speaks, so no gem API change is required.
 
 ## [1.0.0] - 2026-09-23
 
