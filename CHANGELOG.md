@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `0.99.2` (from
+- Bumped pinned upstream `pi-coding-agent` version to `1.0.0` (from
   `0.87.1`). Upstream jumped its numbering from the `0.87.x` line straight
-  to `0.99.0`/`0.99.1`/`0.99.2`; there are no intermediate `0.88`–`0.98`
-  releases.
+  to the `0.99.x` line and then to the `1.0.0` milestone; there are no
+  intermediate `0.88`–`0.98` releases.
   None of the changes alter the JSONL RPC command/response shapes this gem
   drives, so no gem API change is required.
   - `0.99.0` is a large feature batch centered on the CLI/TUI and the
@@ -42,6 +42,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     enabling newly added `defaultTools`. All changes are CLI/TUI, codemode,
     or TypeScript SDK/provider concerns, outside the JSONL RPC surface this
     gem speaks, so no gem API change is required.
+  - `1.0.0` is the stable milestone release and, despite the major version
+    bump, carries no breaking change to the JSONL RPC command/response
+    shapes this gem drives. It makes the TUI fullscreen by default
+    (`tuiMode: "regular"` restores scrollback), shrinks codemode prompt
+    tokens (~40%) with recovery-oriented errors, adds image generation in
+    codemode (`models.generateImages()`), Radius `/login` + MCP setup,
+    Anthropic copy-code login for headless setups, MCP OAuth hardening
+    (`oauth.authServerMetadataUrl`, RFC 9207 `iss` checks, per-server
+    credentials, scope-preserving step-up), and `quietStartup: "header"`.
+    All are CLI/TUI, codemode, MCP, or provider concerns outside the RPC
+    surface this gem speaks.
 
 ## [1.0.0] - 2026-09-23
 
