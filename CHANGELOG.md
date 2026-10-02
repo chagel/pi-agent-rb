@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-01
+
+Tracks pi 1.0.0. No gem API change; verified against a real `pi --mode rpc`
+1.0.0 (live specs).
+
 ### Changed
 - Bumped pinned upstream `pi-coding-agent` version to `1.0.0` (from
   `0.87.1`). Upstream jumped its numbering from the `0.87.x` line straight
