@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.0.0` (from
+  `0.87.1`). Upstream jumped its numbering from the `0.87.x` line straight
+  to the `0.99.x` line and then to the `1.0.0` milestone; there are no
+  intermediate `0.88`–`0.98` releases.
+  None of the changes alter the JSONL RPC command/response shapes this gem
+  drives, so no gem API change is required.
+  - `0.99.0` is a large feature batch centered on the CLI/TUI and the
+    TypeScript SDK/extension layer: built-in codemode, tool-search, and MCP
+    extensions (QuickJS sandbox, `mcp.json`, `/mcp`, `pi mcp ...`); a new
+    `system` theme that derives colors from the terminal palette (now the
+    default); Sign in with ChatGPT for the OpenAI provider; experimental
+    virtual models and llama.cpp/Jev classifier models; and image
+    generation on `ModelRuntime`. These are CLI/TUI or TypeScript
+    SDK/provider concerns, outside the JSONL RPC surface this gem speaks.
+  - The one RPC-adjacent change is additive: successful `prompt`, `steer`,
+    and `follow_up` responses now carry a per-input disposition, and
+    `RpcClient.prompt()` also accepts `streamingBehavior`. This gem treats
+    those responses as acks and does not read the new fields, and it does
+    not send `streamingBehavior`, so the existing behavior is unchanged.
+  - Built-in extensions/tools are now named `builtin:<name>` in RPC source
+    info, diagnostics, and bug reports (was `<inline:name>`/`<builtin:name>`).
+    This gem does not parse those identifier strings, so it is unaffected.
+  - `0.99.1` is a provider maintenance patch: adds GPT-6.1 Sol
+    (`gpt-6.1-sol`) to the OpenAI, Azure OpenAI, and OpenAI Codex providers
+    (now the default OpenAI Codex model) and fixes `/login` with OpenAI in
+    the bundled release. No RPC surface change.
+  - `0.99.2` is an MCP/codemode and provider batch: MCP servers with the
+    default codemode exposure stay out of the codemode description and no
+    longer block the first prompt; adds `oauth.clientName` and an
+    `auth: { provider }` option for HTTP MCP servers, a `describeNamespace()`
+    codemode helper, Anthropic workload identity federation, and `/reload`
+    enabling newly added `defaultTools`. All changes are CLI/TUI, codemode,
+    or TypeScript SDK/provider concerns, outside the JSONL RPC surface this
+    gem speaks, so no gem API change is required.
+  - `1.0.0` is the stable milestone release and, despite the major version
+    bump, carries no breaking change to the JSONL RPC command/response
+    shapes this gem drives. It makes the TUI fullscreen by default
+    (`tuiMode: "regular"` restores scrollback), shrinks codemode prompt
+    tokens (~40%) with recovery-oriented errors, adds image generation in
+    codemode (`models.generateImages()`), Radius `/login` + MCP setup,
+    Anthropic copy-code login for headless setups, MCP OAuth hardening
+    (`oauth.authServerMetadataUrl`, RFC 9207 `iss` checks, per-server
+    credentials, scope-preserving step-up), and `quietStartup: "header"`.
+    All are CLI/TUI, codemode, MCP, or provider concerns outside the RPC
+    surface this gem speaks.
+
 ## [1.0.0] - 2026-09-23
 
 First stable release. The public API (`PiAgent.session` / `PiAgent.open`,
