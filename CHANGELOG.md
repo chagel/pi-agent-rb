@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-04
+
+Tracks pi 1.0.2. No gem API change; the gem's public API and JSONL RPC
+command/response handling are unchanged.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.0.2` (from
+  `1.0.0`), rolling up `1.0.1` and `1.0.2`. None of the changes alter the
+  JSONL RPC command/response shapes this gem drives, so no gem API change is
+  required.
+  - `1.0.1` is a CLI/TUI/MCP/provider/packaging batch: a Nix flake install
+    path; project-level overrides for user MCP servers in `.pi/mcp.json` and
+    `/mcp`; MCP Client ID Metadata Documents
+    (`oauth.clientRegistration: "cimd"`); `pi.registerToolRenderer()` for
+    drawing unregistered/MCP tools; and Cloudflare Clef classifier models.
+    Its fixes target the TUI, codemode memory limits, image rendering, MCP
+    OAuth/resume rendering, and provider/pricing issues (Anthropic, Bedrock,
+    Together, NVIDIA, Cloudflare). Packaging: `brace-expansion` pinned to
+    5.0.12 for a security advisory, and `npm-shrinkwrap.json` removed from
+    the published package so npm installs no longer pin transitive deps. All
+    are CLI/TUI, codemode, MCP, provider, or packaging concerns outside the
+    JSONL RPC surface this gem speaks.
+  - `1.0.2` adds `samplingParamsByThinkingLevel` to `models.json` for
+    per-thinking-level sampling parameter overrides on OpenAI-compatible
+    APIs. This is a provider/config concern, outside the RPC surface this
+    gem speaks.
+
 ## [1.1.0] - 2026-10-01
 
 Tracks pi 1.0.0. No gem API change; verified against a real `pi --mode rpc`
