@@ -7,16 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.1] - 2026-10-04
+## [1.1.1] - 2026-10-05
 
-Tracks pi 1.0.2. No gem API change; the gem's public API and JSONL RPC
+Tracks pi 1.0.3. No gem API change; the gem's public API and JSONL RPC
 command/response handling are unchanged.
 
 ### Changed
-- Bumped pinned upstream `pi-coding-agent` version to `1.0.2` (from
-  `1.0.0`), rolling up `1.0.1` and `1.0.2`. None of the changes alter the
-  JSONL RPC command/response shapes this gem drives, so no gem API change is
-  required.
+- Bumped pinned upstream `pi-coding-agent` version to `1.0.3` (from
+  `1.0.0`), rolling up `1.0.1`, `1.0.2`, and `1.0.3`. None of the changes
+  alter the JSONL RPC command/response shapes this gem drives, so no gem API
+  change is required.
   - `1.0.1` is a CLI/TUI/MCP/provider/packaging batch: a Nix flake install
     path; project-level overrides for user MCP servers in `.pi/mcp.json` and
     `/mcp`; MCP Client ID Metadata Documents
@@ -33,6 +33,17 @@ command/response handling are unchanged.
     per-thinking-level sampling parameter overrides on OpenAI-compatible
     APIs. This is a provider/config concern, outside the RPC surface this
     gem speaks.
+  - `1.0.3` renames the Azure provider from `azure-openai-responses` to
+    `azure` (a breaking change for `auth.json`/`models.json`/`settings.json`
+    provider keys) and adds Azure Foundry Chat Completions deployments
+    (`azure/deepseek-v4-pro`). Codemode `image()` now also writes each image
+    to a temp file and names the path in the result; output files are
+    readable only by the user; and `Home`/`End` always move the editor
+    cursor to line start/end (fullscreen transcript top/bottom moved to
+    `Ctrl+Home`/`Ctrl+End`). Fixes target subscription OAuth token refresh,
+    codemode after a `pnpm` global update, and terminal `EIO` crashes. All
+    are provider/config, CLI/TUI, or codemode-local concerns outside the
+    JSONL RPC surface this gem speaks.
 
 ## [1.1.0] - 2026-10-01
 
