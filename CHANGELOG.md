@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-06
+
+Tracks pi 1.0.4. No gem API change; the gem's public API and JSONL RPC
+command/response handling are unchanged.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.0.4` (from
+  `1.0.3`). The `1.0.4` changes do not alter the JSONL RPC command/response
+  shapes this gem drives, so no gem API change is required.
+  - New features: `--tools`/`--exclude-tools` accept `*` patterns (e.g.
+    `--tools read,codemode,'mcp__radius__*'`) and now keep MCP tools unless
+    an entry starts with `mcp__`; `--no-mcp` disables built-in MCP support
+    for one run; codemode `tools.read()` on an image file returns an image
+    block that `image()` can show. These are CLI and codemode concerns.
+  - Fixes target syntax highlighting in fenced code blocks, codemode image
+    handling, MCP OAuth sign-in/session shutdown, `--tools` dropping MCP
+    tools, Bedrock HTTP/2 retry, and codemode built-in patching. All are
+    CLI/TUI, codemode, MCP, or provider concerns outside the JSONL RPC
+    surface this gem speaks.
+  - Release notes: https://github.com/earendil-works/pi/releases/tag/v1.0.4
+
 ## [1.1.1] - 2026-10-05
 
 Tracks pi 1.0.3. No gem API change; the gem's public API and JSONL RPC
