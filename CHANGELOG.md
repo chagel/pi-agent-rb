@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-08
+
+Tracks pi 1.1.0 (rolls up `1.0.1`, `1.0.2`, `1.0.3`, `1.0.4`, and `1.1.0`).
+No gem API change required.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.1.0` (from `1.0.0`).
+  None of the intermediate releases alter the JSONL RPC command/response
+  shapes this gem drives, so no gem API change is required.
+  - `1.0.1` — CLI/TUI/MCP/provider/packaging batch: Nix flake install path;
+    project-level overrides for user MCP servers; MCP Client ID Metadata
+    Documents (`oauth.clientRegistration: "cimd"`); `pi.registerToolRenderer()`;
+    Cloudflare Clef classifier models. Packaging: `brace-expansion` pinned to
+    5.0.12 (security advisory) and `npm-shrinkwrap.json` removed from the
+    published package. All CLI/TUI, MCP, codemode, or provider concerns.
+  - `1.0.2` — adds `samplingParamsByThinkingLevel` to `models.json` for
+    per-thinking-level sampling overrides on OpenAI-compatible APIs.
+    Provider/config concern only.
+  - `1.0.3` — renames the Azure provider `azure-openai-responses` → `azure`
+    (breaking for `auth.json`/`models.json`/`settings.json` provider keys) and
+    adds Azure Foundry Chat Completions deployments; codemode `image()`
+    temp-file behavior; editor `Home`/`End` key changes. Provider/config,
+    CLI/TUI, and codemode-local concerns, outside the RPC surface.
+  - `1.0.4` — `--tools`/`--exclude-tools` accept `*` patterns and keep MCP
+    tools unless an entry starts with `mcp__`; `--no-mcp` flag; codemode
+    `tools.read()` returns an image block for image files. All CLI/TUI,
+    codemode, MCP, or provider concerns.
+  - `1.1.0` — adds program status reporting over OSC 7501, Claude Haiku 5.5
+    (`anthropic/claude-haiku-5-5`), `+name`/`-name` entries for `--tools`,
+    GPT-6 Luna image classification, and native llama.cpp decision models.
+    The one RPC-adjacent change is additive: `aborted` is added to
+    `agent_settled` session, extension, and JSON events so integrations can
+    tell a cancelled run from a finished one. This gem treats `agent_settled`
+    as the completion boundary and does not read the new field, so existing
+    behavior is unchanged (optionally surfacing `aborted` is a future
+    enhancement). All other changes are CLI/TUI, codemode, or provider
+    concerns.
+
 ## [1.1.0] - 2026-10-01
 
 Tracks pi 1.0.0. No gem API change; verified against a real `pi --mode rpc`
