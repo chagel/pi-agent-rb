@@ -21,6 +21,13 @@ RSpec.describe PiAgent::Event do
     expect(described_class.new({ "type" => "agent_settled" }).terminal?).to be true
   end
 
+  it "reports aborted? from the agent_settled aborted flag" do
+    expect(described_class.new({ "type" => "agent_settled", "aborted" => true }).aborted?).to be true
+    expect(described_class.new({ "type" => "agent_settled", "aborted" => false }).aborted?).to be false
+    expect(described_class.new({ "type" => "agent_settled" }).aborted?).to be false
+    expect(described_class.new({ "type" => "agent_end", "aborted" => true }).aborted?).to be false
+  end
+
   it "does not flag agent_end, turn_end, or message_end as terminal" do
     expect(described_class.new({ "type" => "agent_end" }).terminal?).to be false
     expect(described_class.new({ "type" => "turn_end" }).terminal?).to be false

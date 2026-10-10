@@ -57,6 +57,12 @@ module PiAgent
       assistant_event["reason"]
     end
 
+    # True for an `agent_settled` event whose run ended because it was
+    # aborted (pi >= 1.1.0). Distinguishes a cancelled run from a finished one.
+    def aborted?
+      @type == :agent_settled && @raw["aborted"] == true
+    end
+
     def to_h
       @raw
     end
