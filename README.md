@@ -279,6 +279,8 @@ timeouts then remain the only backstop when pi dies.
   (`"aborted"` vs `"error"`). This covers `extension_error` events and
   errored assistant turns. The gem does not abort your iteration on
   agent errors; you decide how to react.
+- To tell a cancelled run from a finished one, check `Event#aborted?` on
+  the terminal `agent_settled` event (pi >= 1.1.0).
 
 ## Protocol reference
 

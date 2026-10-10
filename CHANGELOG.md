@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.1] - 2026-10-08
+## [1.2.0] - 2026-10-10
 
 Tracks pi 1.1.0 (rolls up `1.0.1`, `1.0.2`, `1.0.3`, `1.0.4`, and `1.1.0`).
-No gem API change required.
+Verified against a real `pi --mode rpc` 1.1.0 (live specs green).
+
+### Added
+- `Event#aborted?` — true for an `agent_settled` event whose run was aborted
+  (pi >= 1.1.0), so callers can tell a cancelled run from a finished one.
 
 ### Changed
 - Bumped pinned upstream `pi-coding-agent` version to `1.1.0` (from `1.0.0`).
@@ -39,11 +43,10 @@ No gem API change required.
     GPT-6 Luna image classification, and native llama.cpp decision models.
     The one RPC-adjacent change is additive: `aborted` is added to
     `agent_settled` session, extension, and JSON events so integrations can
-    tell a cancelled run from a finished one. This gem treats `agent_settled`
-    as the completion boundary and does not read the new field, so existing
-    behavior is unchanged (optionally surfacing `aborted` is a future
-    enhancement). All other changes are CLI/TUI, codemode, or provider
-    concerns.
+    tell a cancelled run from a finished one; surfaced as `Event#aborted?`.
+    `tool_execution_end` also gains `durationMs` (reachable via
+    `event[:durationMs]`). All other changes are CLI/TUI, codemode, or
+    provider concerns.
 
 ## [1.1.0] - 2026-10-01
 
