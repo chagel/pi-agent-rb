@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-13
+
+Tracks pi 1.2.0. No gem API change: none of the 1.2.0 changes alter the JSONL
+RPC command/response shapes this gem drives.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.2.0` (from `1.1.0`).
+  pi 1.2.0's changes are all CLI/TUI, extension API (`before_agent_start`
+  union, session-busy-while-starting), MCP (`pi mcp list --json` resources,
+  structured content), codemode, provider (per-key OpenRouter model lists),
+  and config-schema concerns (`$schema` for settings/models/keybindings/
+  themes) — none touch the RPC wire protocol this gem speaks, so no gem code
+  change is required.
+  Release notes: https://github.com/earendil-works/pi/releases/tag/v1.2.0
+
 ## [1.2.0] - 2026-10-10
 
 Tracks pi 1.1.0 (rolls up `1.0.1`, `1.0.2`, `1.0.3`, `1.0.4`, and `1.1.0`).
