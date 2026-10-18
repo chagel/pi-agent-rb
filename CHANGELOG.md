@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-16
+
+Tracks pi 1.3.0 (rolls up `1.2.0` and `1.3.0`). No gem API change: the RPC
+mode sources (`src/modes/rpc/*`, `rpc-entry.ts`) and `docs/rpc.md` are
+unchanged between pi 1.1.0 and 1.3.0, so the JSONL RPC command/response
+shapes this gem drives are the same.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.3.0` (from `1.1.0`).
+  - `1.2.0` — CLI/TUI, extension API (`before_agent_start` becomes a
+    `messageType` union; session counts as busy while a run starts), MCP
+    (`pi mcp list --json` reports `resources: true`; non-object structured
+    content), codemode, per-key OpenRouter model lists, and published
+    `$schema` config schemas.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.2.0
+  - `1.3.0` — `sessionShareDestination` setting for `/share`; `kimi-coding`
+    moves to Chat Completions (`models.json` base URL overrides must include
+    `/v1`); model switching drops prior-model thinking; resumed sessions keep
+    their active tools (`--tools +name`/`-name` applies on top); `--model`
+    prefers the provider with credentials; retry/provider fixes.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.3.0
+
 ## [1.2.0] - 2026-10-10
 
 Tracks pi 1.1.0 (rolls up `1.0.1`, `1.0.2`, `1.0.3`, `1.0.4`, and `1.1.0`).
