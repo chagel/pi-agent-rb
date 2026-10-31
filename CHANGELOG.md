@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-22
+
+Tracks pi 1.4.0. No gem API change: the RPC mode sources (`src/modes/rpc/*`)
+and `docs/rpc.md` are unchanged between pi 1.3.0 and 1.4.0, so the JSONL RPC
+command/response shapes this gem drives are the same. Verified against a real
+`pi --mode rpc` 1.4.0 (live specs green).
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.4.0` (from `1.3.0`).
+  - `1.4.0` — codemode `models.classify()` accepts `images`; generated
+    `models.json` Models Configuration reference; compaction/branch summaries
+    use the model's output limit (`reserveTokens` only controls when
+    compaction starts); codemode queues for a free worker
+    (`PI_CODEMODE_MAX_WORKERS`); provider attribution headers come from
+    pi-ai's client identity; new default Copilot/NVIDIA/Xiaomi models; fixes
+    for truncated-tool-call recovery, resumed-session extension tools,
+    `grep` ignoring `RIPGREP_CONFIG_PATH`, and BOM-prefixed `mcp.json`.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.4.0
+
 ## [1.2.1] - 2026-10-16
 
 Tracks pi 1.3.0 (rolls up `1.2.0` and `1.3.0`). No gem API change: the RPC
