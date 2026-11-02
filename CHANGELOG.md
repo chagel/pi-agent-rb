@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-11-02
+
+Tracks pi 1.5.0. No gem API change: the RPC mode sources (`src/modes/rpc/*`)
+and `docs/rpc.md` are unchanged between pi 1.4.0 and 1.5.0, so the JSONL RPC
+command/response shapes this gem drives are the same. The only wire-visible
+addition is the optional `usage.cost.totalFromProvider` flag on assistant
+messages, which passes through untouched.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.5.0` (from `1.4.0`).
+  - `1.5.0` — extension update changelogs (`pi.changelogPath`,
+    `collapseChangelog`); faster incremental streaming/rendering of large tool
+    calls; custom self-update commands (`PI_SELF_UPDATE_COMMAND` /
+    `selfUpdateCommand`); GPT-6.1 Terra models; `pi.exec()` `maxBuffer` with a
+    `truncated` result flag; provider-reported billed cost
+    (`usage.cost.totalFromProvider`). Breaking for extension authors only: tool
+    argument validation now runs on `@earendil-works/pi-schema` (TypeBox-only
+    features such as `Type.Refine()`/codecs no longer apply; plain JSON Schema
+    and MCP tools get the same coercion; validation error wording changed).
+    Not used by this gem.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.5.0
+
 ## [1.2.2] - 2026-10-30
 
 Tracks pi 1.4.0. No gem API change: the RPC mode sources (`src/modes/rpc/*`)
