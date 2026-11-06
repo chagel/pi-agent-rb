@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.3] - 2026-11-02
+## [1.2.3] - 2026-11-05
 
 Tracks pi 1.5.0. No gem API change: the RPC mode sources (`src/modes/rpc/*`)
 and `docs/rpc.md` are unchanged between pi 1.4.0 and 1.5.0, so the JSONL RPC
