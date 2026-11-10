@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-11-10
+
+Tracks pi 1.5.2 (rolls up `1.5.1` and `1.5.2`). No gem API change: the JSONL
+RPC command/response/event shapes this gem drives are unchanged between pi
+1.5.0 and 1.5.2. The only RPC-mode change (`src/modes/rpc/rpc-mode.ts`,
+`docs/rpc.md`) is shutdown behavior, which is compatible with
+`Transport::Subprocess#close` (stdin EOF, then bounded SIGTERM/SIGKILL
+escalation). Verified against a real `pi --mode rpc` 1.5.2 (live specs green).
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.5.2` (from `1.5.0`).
+  - `1.5.1` — `pi auth login/logout` shell commands; idle prompt cache warming
+    (`cacheWarming` now defaults to `"idle"`); Anthropic message threads;
+    richer Mermaid rendering; GitHub Copilot classifiers; `pi update` package
+    summaries; new default models (e.g. `anthropic` now defaults to Claude
+    Opus 5.5). RPC mode: an extension's `ctx.shutdown()` while idle now exits
+    immediately; after stdin EOF pi waits for pending work (e.g. MCP token
+    refresh) before exiting, and a single SIGTERM/SIGHUP during shutdown no
+    longer interrupts cleanup (a second signal still exits at once). Breaking
+    for extension authors / model config only (`GrepOperations.readFile` no
+    longer used for context lines; OpenAI-compatible requests omit empty
+    `tools`). Not used by this gem.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.5.1
+  - `1.5.2` — interactive `Continue`/`Fork`/`Cancel` when a session's working
+    directory no longer exists; `/import` cleanup fix; Anthropic OAuth client
+    version fix. No RPC change.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.5.2
+
 ## [1.2.3] - 2026-11-05
 
 Tracks pi 1.5.0. No gem API change: the RPC mode sources (`src/modes/rpc/*`)
