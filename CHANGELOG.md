@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.4] - 2026-11-20
+## [1.2.4] - 2026-11-21
 
 Tracks pi 1.6.0 (rolls up `1.5.1`, `1.5.2`, and `1.6.0`). No gem API change:
 the JSONL RPC command/response/event shapes this gem drives are unchanged
