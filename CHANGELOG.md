@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-11-25
+
+Tracks pi 1.6.1. No gem API change: `src/modes/rpc/rpc-types.ts`,
+`rpc-client.ts`, and `docs/rpc.md` are unchanged between pi 1.6.0 and 1.6.1,
+so the JSONL RPC command/response/event shapes this gem drives are the same.
+The RPC-mode changes are internal: `jsonl.ts` no longer rescans an incomplete
+line on every chunk (large lines, e.g. messages with images, are no longer
+quadratic), and `rpc-mode.ts` handles SIGHUP on Windows too and kills tracked
+detached `bash` children on exit. Both are compatible with
+`Transport::Subprocess`.
+
+### Changed
+- Bumped pinned upstream `pi-coding-agent` version to `1.6.1` (from `1.6.0`).
+  - `1.6.1` — codemode decision models (GitHub Copilot `gpt-6-luna-decisions`,
+    Radius) and `responseId` in `models.classify()` results; per-notice
+    settings (`notices.cacheMisses` / `cacheWarming` / `compactionCosts` /
+    `reasoningDrops`) replace `showCacheMissNotices` (auto-migrated);
+    `blockedKind` for extension dialogs; bash tool `full_output_error` /
+    `fullOutputError` when truncated output can't be saved; default Mistral
+    model is now `mistral-medium-latest`; `after_provider_response` fires for
+    HTTP errors and retries on more providers; many provider retry / HTTP 400
+    fixes. Breaking for extension authors / settings only
+    (`SettingsManager.getShowCacheMissNotices()` / `setShowCacheMissNotices()`
+    removed in favor of `getNotices()` / `setNotice()`); not for RPC clients.
+    Release notes: https://github.com/earendil-works/pi/releases/tag/v1.6.1
+
 ## [1.2.4] - 2026-11-21
 
 Tracks pi 1.6.0 (rolls up `1.5.1`, `1.5.2`, and `1.6.0`). No gem API change:
